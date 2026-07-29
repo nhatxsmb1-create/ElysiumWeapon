@@ -12,27 +12,15 @@ import org.bukkit.util.Vector;
 
 import java.util.*;
 
-/**
- * Florentino Sword — cơ chế:
- *
- * PASSIVE (nội tại):
- *   Mỗi 30s → FLORENTINO_READY = true
- *   Click trái CHÉM TRÚNG mob → nếu READY → Dash xuyên qua mob → lướt đến hoa gần nhất để nhặt
- *   Nhặt hoa (Poppy) → reset cooldown nội tại ngay lập tức
- *
- * SKILL 1 (Click phải):
- *   Ném 3 bông hoa Poppy ra xung quanh player
- */
 public class FlorentinoSkill {
 
     private final ElysiumWeapon plugin;
 
-    // Key luu trong PlayerWeaponState passive stack
     public static final String PASSIVE_KEY = "FLORENTINO_READY";
-    // Key cooldown 30s
     public static final String CD_KEY      = "FLORENTINO_PASSIVE_CD";
+    public static final int    PASSIVE_CD  = 20; // giay
 
-    // Hoa tren san: Location -> expire ms
+    // World UID -> danh sach hoa tren san
     private final Map<UUID, List<FlowerEntry>> flowerMap = new HashMap<>();
 
     public FlorentinoSkill(ElysiumWeapon plugin) {
@@ -40,219 +28,223 @@ public class FlorentinoSkill {
         startPassiveTimer();
     }
 
-    // ── Passive Timer ─────────────────────────────────────────────────────────
+    // ── Passive Timer: moi 20s set ready ────────────────────────────────────
 
     private void startPassiveTimer() {
         new BukkitRunnable() {
             @Override public void run() {
                 for (Player p : Bukkit.getOnlinePlayers()) {
                     PlayerWeaponState state = plugin.getWeaponManager().getState(p);
-                    String wid = state.getCurrentWeapon();
-                    if (!"FLORENTINO_SWORD".equals(wid)) continue;
+                    if (!"FLORENTINO_SWORD".equals(state.getCurrentWeapon())) continue;
                     if (state.isOnCooldown(CD_KEY)) continue;
-                    // San sang dash
-                    if (state.getPassiveStack(PASSIVE_KEY) == 0) {
-                        state.addPassiveStack(PASSIVE_KEY, 1, 99999);
-                        p.sendActionBar(color("&d✦ &fNoi tai san sang! &7[Click trai chem trung de Dash]"));
-                        p.getWorld().playSound(p.getLocation(),
-                                Sound.BLOCK_AMETHYST_BLOCK_CHIME, 0.8f, 1.4f);
-                    }
+                    if (state.getPassiveStack(PASSIVE_KEY) > 0) continue;
+
+                    state.addPassiveStack(PASSIVE_KEY, 1, 99999);
+                    p.sendActionBar(color("&d✦ &fNoi tai san sang! &7[Click trai de Dash]"));
+                    p.playSound(p.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 0.7f, 1.4f);
                 }
             }
-        }.runTaskTimer(plugin, 600L, 600L); // 600 tick = 30s
+        }.runTaskTimer(plugin, 400L, 400L); // 400 tick = 20s
     }
 
-    // ── On Hit — kích hoạt Dash ───────────────────────────────────────────────
-
-    /**
-     * Gọi từ WeaponListener khi player cầm Florentino Sword đánh trúng mob.
-     * Trả về true nếu đã kích hoạt dash (cancel dame gốc và thay bằng dame dash).
-     */
-    public boolean onHit(Player player, LivingEntity target, PlayerWeaponState state, double baseDamage) {
-        if (state.getPassiveStack(PASSIVE_KEY) == 0) return false;
-
-        // Tiêu passive
-        state.clearPassiveStack(PASSIVE_KEY);
-        // Set cooldown 30s
-        state.setCooldown(CD_KEY, 30);
-
-        executeDash(player, target, baseDamage);
-        return true;
-    }
-
-    // ── Dash Logic ────────────────────────────────────────────────────────────
-
-    private void executeDash(Player player, LivingEntity target, double baseDamage) {
-        Location from = player.getLocation();
-        Location to   = target.getLocation();
-
-        // Vector từ player đến target
-        Vector dir = to.toVector().subtract(from.toVector()).normalize();
-
-        // Particle trail trong khi dash
-        new BukkitRunnable() {
-            int tick = 0;
-            @Override public void run() {
-                if (tick++ >= 6) { cancel(); return; }
-                player.getWorld().spawnParticle(
-                    Particle.CHERRY_LEAVES,
-                    player.getLocation().add(0, 1, 0),
-                    8, 0.3, 0.3, 0.3, 0.05);
-                player.getWorld().spawnParticle(
-                    Particle.ENCHANT,
-                    player.getLocation().add(0, 1, 0),
-                    5, 0.2, 0.2, 0.2, 0.1);
-            }
-        }.runTaskTimer(plugin, 0, 1);
-
-        // Teleport xuyên qua target (overshoot 1.5 block)
-        Location landLoc = to.clone().add(dir.clone().multiply(1.5));
-        landLoc.setYaw(from.getYaw());
-        landLoc.setPitch(from.getPitch());
-        player.teleport(landLoc);
-
-        // Gây dame
-        target.damage(baseDamage * 1.8, player);
-        player.getWorld().playSound(landLoc, Sound.ENTITY_PLAYER_ATTACK_SWEEP, 1f, 0.8f);
-        player.getWorld().spawnParticle(Particle.SWEEP_ATTACK, target.getLocation().add(0,1,0), 3);
-
-        player.sendActionBar(color("&d✦ &fDash!"));
-
-        // Sau dash → tìm hoa gần nhất và lướt đến
-        Bukkit.getScheduler().runTaskLater(plugin, () -> glideToFlower(player, state -> {
-            // Callback khi nhặt hoa: reset cooldown ngay
-        }), 3L);
-    }
-
-    // ── Glide đến hoa ────────────────────────────────────────────────────────
-
-    private void glideToFlower(Player player, java.util.function.Consumer<PlayerWeaponState> onPickup) {
-        FlowerEntry nearest = getNearestFlower(player, 15);
-        if (nearest == null) return;
-
-        Location flowerLoc = nearest.location.clone().add(0.5, 0, 0.5);
-        Vector dir = flowerLoc.toVector()
-                .subtract(player.getLocation().toVector()).normalize();
-        dir.setY(0.1);
-
-        // Particle trail lướt đến hoa
-        new BukkitRunnable() {
-            int tick = 0;
-            @Override public void run() {
-                if (tick++ >= 8) {
-                    cancel();
-                    // Kiểm tra nhặt hoa
-                    pickupFlower(player, nearest);
-                    return;
-                }
-                player.setVelocity(dir.clone().multiply(1.2));
-                player.getWorld().spawnParticle(
-                    Particle.CHERRY_LEAVES,
-                    player.getLocation().add(0, 0.5, 0),
-                    4, 0.1, 0.1, 0.1, 0);
-            }
-        }.runTaskTimer(plugin, 0, 1);
-    }
-
-    // ── Nhặt hoa ────────────────────────────────────────────────────────────
-
-    private void pickupFlower(Player player, FlowerEntry entry) {
-        List<FlowerEntry> list = flowerMap.get(player.getWorld().getUID());
-        if (list != null) list.remove(entry);
-
-        // Xóa item trên sàn
-        for (Entity e : player.getWorld().getNearbyEntities(entry.location.clone().add(0.5,0,0.5), 1, 1, 1)) {
-            if (e instanceof Item item && item.getItemStack().getType() == Material.POPPY) {
-                item.remove();
-                break;
-            }
-        }
-
-        // Reset cooldown passive ngay lập tức
-        PlayerWeaponState state = plugin.getWeaponManager().getState(player);
-        state.clearPassiveStack(PASSIVE_KEY);
-        // Xóa cooldown để passive timer set lại ngay
-        state.setCooldown(CD_KEY, 0);
-        // Set passive ready ngay
-        state.addPassiveStack(PASSIVE_KEY, 1, 99999);
-
-        player.sendActionBar(color("&d✦ &fNhat hoa! Noi tai san sang lai!"));
-        player.getWorld().playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 0.6f, 1.6f);
-        player.getWorld().spawnParticle(Particle.CHERRY_LEAVES,
-                player.getLocation().add(0, 1, 0), 20, 0.5, 0.5, 0.5, 0.05);
-    }
-
-    // ── Skill 1: Ném 3 hoa ───────────────────────────────────────────────────
+    // ── Skill 1: Ném hoa trúng mob ──────────────────────────────────────────
 
     public void throwFlowers(Player player) {
         World world = player.getWorld();
-        Location center = player.getLocation();
+        Location start = player.getEyeLocation();
+        Vector dir = start.getDirection().normalize();
 
-        // Ném 3 hoa theo 3 hướng cách đều 120 độ
-        for (int i = 0; i < 3; i++) {
-            double angle = Math.toRadians(i * 120 + player.getLocation().getYaw() + 90);
-            double dist  = 2.5 + Math.random() * 1.5;
-            double x     = center.getX() + dist * Math.cos(angle);
-            double z     = center.getZ() + dist * Math.sin(angle);
-            Location land = new Location(world, x, center.getY(), z);
+        // Bay thang ra truoc 5 block, moi 0.5 block kiem tra trung mob
+        new BukkitRunnable() {
+            double dist = 0;
+            @Override public void run() {
+                dist += 0.5;
+                Location cur = start.clone().add(dir.clone().multiply(dist));
 
-            // Tìm đất dưới
-            land = findGround(land);
+                // Particle projectile
+                world.spawnParticle(Particle.CHERRY_LEAVES, cur, 3, 0.1, 0.1, 0.1, 0.01);
 
-            // Spawn item hoa
-            Item flower = world.dropItem(land.clone().add(0, 0.5, 0), new ItemStack(Material.POPPY));
-            flower.setPickupDelay(Integer.MAX_VALUE); // Player ko nhặt tay, chỉ dash đến mới nhặt
-            flower.setVelocity(new Vector(0, 0, 0));
-            flower.setGlowing(true);
-            flower.setCustomName(color("&d✦ Hoa Florentino"));
-            flower.setCustomNameVisible(true);
+                // Kiem tra trung mob trong vong 1 block
+                LivingEntity hit = null;
+                for (Entity e : world.getNearbyEntities(cur, 1, 1, 1)) {
+                    if (e instanceof LivingEntity le && !(le instanceof Player)
+                            && !e.equals(player)) {
+                        hit = le;
+                        break;
+                    }
+                }
 
-            // Lưu vào map
-            flowerMap.computeIfAbsent(world.getUID(), k -> new ArrayList<>())
-                     .add(new FlowerEntry(land, System.currentTimeMillis() + 20_000));
+                if (hit != null || dist >= 5) {
+                    cancel();
+                    if (hit == null) return; // Bay het 5 block ko trung ai
 
-            // Particle tại điểm rơi
-            world.spawnParticle(Particle.CHERRY_LEAVES, land.clone().add(0,0.5,0), 15, 0.3, 0.3, 0.3, 0.02);
-        }
+                    Location center = hit.getLocation();
 
-        world.playSound(center, Sound.BLOCK_CHERRY_LEAVES_PLACE, 1f, 1.2f);
-        player.sendActionBar(color("&d✦ &fNem 3 hoa! Dash den de nhat!"));
+                    // Slow 2 giay
+                    hit.addPotionEffect(new PotionEffect(
+                        PotionEffectType.SLOWNESS, 40, 1, false, true, true));
+
+                    // Spawn 3 hoa xung quanh vi tri trung
+                    for (int i = 0; i < 3; i++) {
+                        double angle = Math.toRadians(i * 120.0);
+                        double ox = 1.5 * Math.cos(angle);
+                        double oz = 1.5 * Math.sin(angle);
+                        Location flowerLoc = findGround(
+                            new Location(world, center.getX() + ox, center.getY(), center.getZ() + oz));
+
+                        Item flower = world.dropItem(
+                            flowerLoc.clone().add(0, 0.3, 0),
+                            new ItemStack(Material.POPPY));
+                        flower.setPickupDelay(Integer.MAX_VALUE);
+                        flower.setVelocity(new Vector(0, 0, 0));
+                        flower.setGlowing(true);
+                        flower.setCustomName(color("&d✦ Hoa Florentino"));
+                        flower.setCustomNameVisible(true);
+
+                        world.spawnParticle(Particle.CHERRY_LEAVES,
+                            flower.getLocation(), 12, 0.3, 0.3, 0.3, 0.02);
+
+                        long expireMs = System.currentTimeMillis() + 10_000L;
+                        flowerMap.computeIfAbsent(world.getUID(), k -> new ArrayList<>())
+                                 .add(new FlowerEntry(flower.getEntityId(), flowerLoc, expireMs));
+
+                        final int eid = flower.getEntityId();
+                        Bukkit.getScheduler().runTaskLater(plugin, () ->
+                            removeFlowerById(world, eid), 200L);
+                    }
+
+                    world.playSound(center, Sound.BLOCK_CHERRY_LEAVES_PLACE, 1f, 1.2f);
+                    world.spawnParticle(Particle.SWEEP_ATTACK, center.clone().add(0,1,0), 5);
+                    player.sendActionBar(color("&d✦ &fTrung! 3 hoa xuat hien!"));
+                }
+            }
+        }.runTaskTimer(plugin, 0, 1); // Moi 1 tick chay 0.5 block
     }
 
-    // ── Helper ────────────────────────────────────────────────────────────────
+    // ── Passive: Click trai co noi tai → Dash den hoa gan nhat ─────────────
+
+    public boolean onLeftClick(Player player, PlayerWeaponState state) {
+        if (state.getPassiveStack(PASSIVE_KEY) == 0) return false;
+
+        FlowerEntry nearest = getNearestFlower(player, 20);
+        if (nearest == null) return false;
+
+        // Tieu passive + set CD
+        state.clearPassiveStack(PASSIVE_KEY);
+        state.setCooldown(CD_KEY, PASSIVE_CD);
+
+        executeDash(player, nearest, state);
+        return true;
+    }
+
+    // ── Dash den hoa ────────────────────────────────────────────────────────
+
+    private void executeDash(Player player, FlowerEntry target, PlayerWeaponState state) {
+        Location flowerLoc = target.location.clone().add(0.5, 0, 0.5);
+        Vector dir = flowerLoc.toVector()
+            .subtract(player.getLocation().toVector())
+            .normalize();
+        dir.setY(0.15);
+
+        // Particle trail
+        new BukkitRunnable() {
+            int tick = 0;
+            @Override public void run() {
+                if (tick++ >= 7) { cancel(); return; }
+                player.getWorld().spawnParticle(
+                    Particle.CHERRY_LEAVES,
+                    player.getLocation().add(0, 1, 0),
+                    6, 0.2, 0.2, 0.2, 0.01);
+            }
+        }.runTaskTimer(plugin, 0, 1);
+
+        // Teleport gap den hoa
+        Location land = flowerLoc.clone();
+        land.setYaw(player.getLocation().getYaw());
+        land.setPitch(player.getLocation().getPitch());
+        player.teleport(land);
+
+        // Hieu ung khi den noi
+        player.getWorld().playSound(land, Sound.ENTITY_ENDERMAN_TELEPORT, 0.5f, 1.5f);
+        player.getWorld().spawnParticle(Particle.CHERRY_LEAVES, land.clone().add(0,1,0),
+            20, 0.5, 0.5, 0.5, 0.03);
+
+        // Nhat hoa
+        pickupFlower(player, target, state);
+    }
+
+    // ── Nhat hoa → reset passive ────────────────────────────────────────────
+
+    private void pickupFlower(Player player, FlowerEntry entry, PlayerWeaponState state) {
+        removeFlowerById(player.getWorld(), entry.entityId);
+
+        // Reset passive ngay
+        state.setCooldown(CD_KEY, 0);
+        state.addPassiveStack(PASSIVE_KEY, 1, 99999);
+
+        player.sendActionBar(color("&d✦ &fNhat hoa! Noi tai san sang!"));
+        player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 0.8f, 1.6f);
+        player.getWorld().spawnParticle(Particle.HEART,
+            player.getLocation().add(0, 2, 0), 5, 0.3, 0.3, 0.3, 0);
+    }
+
+    // ── Utils ────────────────────────────────────────────────────────────────
 
     private FlowerEntry getNearestFlower(Player player, double maxDist) {
         List<FlowerEntry> list = flowerMap.get(player.getWorld().getUID());
         if (list == null || list.isEmpty()) return null;
 
         long now = System.currentTimeMillis();
-        list.removeIf(f -> now > f.expireMs); // Dọn hoa hết hạn
+        list.removeIf(f -> now > f.expireMs);
 
         FlowerEntry nearest = null;
         double minDist = maxDist * maxDist;
         for (FlowerEntry f : list) {
-            double d = player.getLocation().distanceSquared(f.location.clone().add(0.5, 0, 0.5));
+            double d = player.getLocation().distanceSquared(
+                f.location.clone().add(0.5, 0, 0.5));
             if (d < minDist) { minDist = d; nearest = f; }
         }
         return nearest;
     }
 
+    private void removeFlowerById(World world, int entityId) {
+        // Xoa khoi map
+        List<FlowerEntry> list = flowerMap.get(world.getUID());
+        if (list != null) list.removeIf(f -> f.entityId == entityId);
+
+        // Xoa entity
+        for (Entity e : world.getEntities()) {
+            if (e.getEntityId() == entityId) { e.remove(); break; }
+        }
+    }
+
+    private LivingEntity getTargetInSight(Player player, double range) {
+        return player.getTargetEntity(range) instanceof LivingEntity le
+            && !(le instanceof Player) ? le : null;
+    }
+
     private Location findGround(Location loc) {
         Location l = loc.clone();
         for (int i = 0; i < 5; i++) {
-            if (!l.getBlock().getType().isAir()) { l.add(0, 1, 0); break; }
+            if (!l.getBlock().getType().isAir()) { l.add(0, 1, 0); return l; }
             l.subtract(0, 1, 0);
         }
-        return l;
+        return loc;
     }
 
     private String color(String s) { return s.replace("&", "\u00a7"); }
 
-    // ── Inner class ───────────────────────────────────────────────────────────
+    // ── Inner ────────────────────────────────────────────────────────────────
 
-    private static class FlowerEntry {
-        final Location location;
-        final long     expireMs;
-        FlowerEntry(Location l, long e) { location = l; expireMs = e; }
+    public static class FlowerEntry {
+        public final int      entityId;
+        public final Location location;
+        public final long     expireMs;
+
+        FlowerEntry(int entityId, Location location, long expireMs) {
+            this.entityId = entityId;
+            this.location = location;
+            this.expireMs = expireMs;
+        }
     }
 }
