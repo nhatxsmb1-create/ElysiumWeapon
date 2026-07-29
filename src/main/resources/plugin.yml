@@ -1,0 +1,29 @@
+name: ElysiumWeapon
+version: 1.0.0
+main: dev.elysium.weapon.ElysiumWeapon
+api-version: '1.21'
+authors:
+  - Elysium
+description: Weapon System - Skill, Combo, Mastery, Animation
+
+depend:
+  - ElysiumCore
+  - ProtocolLib
+
+commands:
+  weapon:
+    description: Weapon system
+    aliases: [wp]
+    usage: /weapon <help>
+    permission: elysium.weapon.use
+  weaponadmin:
+    description: Weapon admin
+    aliases: [wpadmin]
+    usage: /weaponadmin <give|reload>
+    permission: elysium.weapon.admin
+
+permissions:
+  elysium.weapon.use:
+    default: true
+  elysium.weapon.admin:
+    default: op
