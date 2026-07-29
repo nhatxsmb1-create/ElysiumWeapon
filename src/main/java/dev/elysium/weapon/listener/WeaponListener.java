@@ -43,6 +43,17 @@ public class WeaponListener implements Listener {
         boolean rightClick = action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK;
         boolean leftClick  = action == Action.LEFT_CLICK_AIR  || action == Action.LEFT_CLICK_BLOCK;
 
+        // Florentino: click trai vao khong khi cung kich hoat dash (ko can trung mob)
+        if (leftClick && !shift && "FLORENTINO_SWORD".equals(weapon.getId())) {
+            e.setCancelled(true);
+            boolean dashed = florentinoSkill.onLeftClick(player, state);
+            if (!dashed && plugin.getWeaponManager().getState(player).getPassiveStack(
+                    dev.elysium.weapon.skill.custom.FlorentinoSkill.PASSIVE_KEY) > 0) {
+                player.sendActionBar(color("\u00a7cKhong co hoa trong tam! Hay nem hoa truoc!"));
+            }
+            return;
+        }
+
         if (rightClick && !shift) {
             // P.Phai giu -> Skill 1
             e.setCancelled(true);
