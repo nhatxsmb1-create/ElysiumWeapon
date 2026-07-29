@@ -35,7 +35,7 @@ public class SkillEngine {
                 player.sendMessage(color("&cKhong du Mana! (" + ep.getMana() + "/" + manaCost + ")"));
                 return;
             }
-            ep.removeMana(manaCost);
+            ep.useMana(manaCost);
         } catch (Exception ignored) {}
 
         // Kiem tra cooldown
@@ -417,99 +417,4 @@ public class SkillEngine {
         LivingEntity target  = getClosestTarget(player, 5);
         if (target == null) return;
 
-        for (int i = 0; i < damages.size(); i++) {
-            final int    idx    = i;
-            final double dmgMult= damages.get(i);
-            new BukkitRunnable() {
-                @Override public void run() {
-                    if (!target.isValid()) return;
-
-                    // Check special per-combo
-                    boolean ignoreArmor = false;
-                    if (combo.getId().equals("IAIDO") && idx == 1)
-                        ignoreArmor = combo.getBoolean("second-hit-ignore-armor", false);
-
-                    double finalDmg = weapon.getBaseDamage() * dmgMult;
-                    if (ignoreArmor) dealDamageIgnoreArmor(player, target, finalDmg);
-                    else             dealDamage(player, target, finalDmg);
-
-                    spawnParticles(target.getLocation().add(0,1,0), combo.getParticleType(), 8, 0.3);
-                    playSound(player, combo.getSoundType());
-                }
-            }.runTaskLater(plugin, i * 5L);
-        }
-
-        // Stun cho HEAVY_COMBO
-        if (combo.getId().equals("HEAVY_COMBO") && target != null) {
-            double stunChance = combo.getDouble("stun-chance", 0.3);
-            if (Math.random() < stunChance) {
-                target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 30, 10));
-            }
-        }
-
-        state.resetCombo();
-        animationEngine.play(player, combo.getAnimationType(), combo.getParticleType());
-        player.sendActionBar(color("&e&l⚡ COMBO: " + combo.getName()));
-
-        // WeaponEXP
-        state.addWeaponExp(weapon.getId(), 10L);
-    }
-
-    // ── Damage Utils ──────────────────────────────────────────────────────────
-
-    public void dealDamage(Player attacker, LivingEntity target, double damage) {
-        target.damage(damage, attacker);
-    }
-
-    public void dealDamageIgnoreArmor(Player attacker, LivingEntity target, double damage) {
-        target.setHealth(Math.max(0, target.getHealth() - damage));
-    }
-
-    private LivingEntity getClosestTarget(Player player, double range) {
-        LivingEntity closest = null;
-        double minDist = Double.MAX_VALUE;
-        for (Entity e : player.getNearbyEntities(range, range, range)) {
-            if (!(e instanceof LivingEntity le) || e == player) continue;
-            double d = player.getLocation().distanceSquared(e.getLocation());
-            if (d < minDist) { minDist = d; closest = le; }
-        }
-        return closest;
-    }
-
-    private int getManaCost(WeaponData w, WeaponData.SkillData s) {
-        if (s == w.getSkill1())   return w.getManaCostSkill1();
-        if (s == w.getSkill2())   return w.getManaCostSkill2();
-        if (s == w.getUltimate()) return w.getManaCostUltimate();
-        return 0;
-    }
-
-    private void spawnParticles(Location loc, String type, int count, double spread) {
-        Particle p;
-        try { p = Particle.valueOf(type); } catch (Exception e) { p = Particle.CRIT; }
-        if (loc.getWorld() != null)
-            loc.getWorld().spawnParticle(p, loc, count, spread, spread, spread, 0);
-    }
-
-    private void spawnRingParticles(Location center, String type, double radius) {
-        Particle p;
-        try { p = Particle.valueOf(type); } catch (Exception e) { p = Particle.CRIT; }
-        if (center.getWorld() == null) return;
-        for (int i = 0; i < 36; i++) {
-            double angle = Math.toRadians(i * 10);
-            double x = center.getX() + radius * Math.cos(angle);
-            double z = center.getZ() + radius * Math.sin(angle);
-            center.getWorld().spawnParticle(p, x, center.getY() + 0.1, z, 3, 0, 0, 0, 0);
-        }
-    }
-
-    private void playSound(Player player, String soundStr) {
-        try {
-            Sound sound = Sound.valueOf(soundStr);
-            player.playSound(player.getLocation(), sound, 1f, 1f);
-        } catch (Exception ignored) {}
-    }
-
-    private String skill(WeaponData.SkillData s) { return s.getParticleType(); }
-    private String skill(WeaponData.ComboData  c) { return c.getParticleType(); }
-    private String color(String s) { return s.replace("&", "\u00a7"); }
-}
+        for (
