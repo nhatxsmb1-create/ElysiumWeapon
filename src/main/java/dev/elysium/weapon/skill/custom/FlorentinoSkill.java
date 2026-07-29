@@ -219,7 +219,7 @@ public class FlorentinoSkill {
     }
 
     private LivingEntity getTargetInSight(Player player, double range) {
-        return player.getTargetEntity(range) instanceof LivingEntity le
+        return player.getTargetEntity((int) range) instanceof LivingEntity le
             && !(le instanceof Player) ? le : null;
     }
 
