@@ -81,17 +81,12 @@ public class WeaponListener implements Listener {
         // Override damage voi base damage cua weapon
         e.setDamage(weapon.getBaseDamage());
 
-        // Florentino passive dash — uu tien truoc passive thuong
+        // Florentino: click trai co noi tai → dash den hoa
         if ("FLORENTINO_SWORD".equals(weapon.getId())) {
             PlayerWeaponState florState = plugin.getWeaponManager().getState(player);
-            boolean dashed = florentinoSkill.onHit(
-                player,
-                (org.bukkit.entity.LivingEntity) e.getEntity(),
-                florState,
-                weapon.getBaseDamage()
-            );
+            boolean dashed = florentinoSkill.onLeftClick(player, florState);
             if (dashed) {
-                e.setCancelled(true); // Dame duoc xu ly trong dash
+                e.setCancelled(true);
                 return;
             }
         }
