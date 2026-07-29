@@ -19,6 +19,10 @@ public class FlorentinoSkill {
     public static final String PASSIVE_KEY = "FLORENTINO_READY";
     public static final String CD_KEY      = "FLORENTINO_PASSIVE_CD";
     public static final int    PASSIVE_CD  = 20; // giay
+    public static final String SKILL1_CD   = "FLORENTINO_SKILL1_CD";
+    public static final int    SKILL1_CD_S = 7;  // giay
+    public static final int    SKILL1_MANA = 12;
+    public static final String BUOC_HOA_KEY = "FLORENTINO_BUOC_HOA"; // Noi tai 2: sau dash dame +30%
 
     // World UID -> danh sach hoa tren san
     private final Map<UUID, List<FlowerEntry>> flowerMap = new HashMap<>();
@@ -50,6 +54,24 @@ public class FlorentinoSkill {
     // ── Skill 1: Ném hoa trúng mob ──────────────────────────────────────────
 
     public void throwFlowers(Player player) {
+        PlayerWeaponState state = plugin.getWeaponManager().getState(player);
+
+        // Kiem tra cooldown
+        if (state.isOnCooldown(SKILL1_CD)) {
+            long rem = state.getCooldownRemaining(SKILL1_CD);
+            player.sendActionBar(color("&cNem Hoa dang hoi phuc! &e" + rem + "s"));
+            return;
+        }
+
+        // Kiem tra mana
+        if (!dev.elysium.core.api.CoreAPI.useMana(player, SKILL1_MANA)) {
+            player.sendActionBar(color("&cKhong du mana! Can: &b" + SKILL1_MANA));
+            return;
+        }
+
+        // Set cooldown 7s
+        state.setCooldown(SKILL1_CD, SKILL1_CD_S);
+
         World world = player.getWorld();
         Location start = player.getEyeLocation();
         Vector dir = start.getDirection().normalize();
@@ -159,6 +181,7 @@ public class FlorentinoSkill {
         }.runTaskTimer(plugin, 0, 1);
 
         // Teleport gap den hoa
+        Location from = player.getLocation();
         Location land = flowerLoc.clone();
         land.setYaw(player.getLocation().getYaw());
         land.setPitch(player.getLocation().getPitch());
@@ -168,6 +191,31 @@ public class FlorentinoSkill {
         player.getWorld().playSound(land, Sound.ENTITY_ENDERMAN_TELEPORT, 0.5f, 1.5f);
         player.getWorld().spawnParticle(Particle.CHERRY_LEAVES, land.clone().add(0,1,0),
             20, 0.5, 0.5, 0.5, 0.03);
+
+        // Dame mob nao nam giua duong dash (tu from den flowerLoc)
+        double baseDamage = 8.0; // fallback, WeaponManager se override
+        try {
+            var wd = plugin.getWeaponManager().getWeaponData("FLORENTINO_SWORD");
+            if (wd != null) baseDamage = wd.getBaseDamage();
+        } catch (Exception ignored) {}
+        final double dashDamage = baseDamage * 1.5; // +50% dame luc dash
+
+        for (Entity e : player.getWorld().getNearbyEntities(from, 6, 2, 6)) {
+            if (!(e instanceof LivingEntity le) || e instanceof Player) continue;
+            // Chi dame mob nam tren duong dash
+            Location mobLoc = le.getLocation();
+            // Kiem tra mob co nam giua from va flowerLoc khong
+            double t = dotProject(from, flowerLoc, mobLoc);
+            if (t >= 0 && t <= 1.2 && distToLine(from, flowerLoc, mobLoc) < 2.0) {
+                le.damage(dashDamage, player);
+                le.addPotionEffect(new PotionEffect(
+                    PotionEffectType.SLOWNESS, 20, 0, false, false, false));
+                player.getWorld().spawnParticle(Particle.SWEEP_ATTACK,
+                    le.getLocation().add(0,1,0), 3);
+            }
+        }
+
+        player.sendActionBar(color("&d✦ &fDash! &6+" + (int)((dashDamage - baseDamage)) + " dame!"));
 
         // Nhat hoa
         pickupFlower(player, target, state);
@@ -182,7 +230,10 @@ public class FlorentinoSkill {
         state.setCooldown(CD_KEY, 0);
         state.addPassiveStack(PASSIVE_KEY, 1, 99999);
 
-        player.sendActionBar(color("&d✦ &fNhat hoa! Noi tai san sang!"));
+        // Noi tai 2: Buoc Hoa — don danh tiep theo trong 3s +30% dame
+        state.addPassiveStack(BUOC_HOA_KEY, 1, 60); // 60 tick = 3s
+
+        player.sendActionBar(color("&d✦ &fNhat hoa! Noi tai san sang! &6[Buoc Hoa +30% dame]"));
         player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 0.8f, 1.6f);
         player.getWorld().spawnParticle(Particle.HEART,
             player.getLocation().add(0, 2, 0), 5, 0.3, 0.3, 0.3, 0);
@@ -233,6 +284,24 @@ public class FlorentinoSkill {
     }
 
     private String color(String s) { return s.replace("&", "\u00a7"); }
+
+    // Do chieu project cua mob len duong dash (0=start, 1=end)
+    private double dotProject(Location a, Location b, Location p) {
+        double abx = b.getX()-a.getX(), abz = b.getZ()-a.getZ();
+        double apx = p.getX()-a.getX(), apz = p.getZ()-a.getZ();
+        double ab2 = abx*abx + abz*abz;
+        if (ab2 == 0) return 0;
+        return (apx*abx + apz*abz) / ab2;
+    }
+
+    // Khoang cach tu mob den duong thang dash
+    private double distToLine(Location a, Location b, Location p) {
+        double abx = b.getX()-a.getX(), abz = b.getZ()-a.getZ();
+        double apx = p.getX()-a.getX(), apz = p.getZ()-a.getZ();
+        double cross = abx*apz - abz*apx;
+        double ab = Math.sqrt(abx*abx + abz*abz);
+        return ab == 0 ? Math.sqrt(apx*apx+apz*apz) : Math.abs(cross)/ab;
+    }
 
     // ── Inner ────────────────────────────────────────────────────────────────
 
