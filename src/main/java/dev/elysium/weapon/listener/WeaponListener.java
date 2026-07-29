@@ -13,12 +13,18 @@ import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.EquipmentSlot;
+import dev.elysium.weapon.skill.custom.FlorentinoSkill;
 
 public class WeaponListener implements Listener {
 
     private final ElysiumWeapon plugin;
 
-    public WeaponListener(ElysiumWeapon plugin) { this.plugin = plugin; }
+    private final FlorentinoSkill florentinoSkill;
+
+    public WeaponListener(ElysiumWeapon plugin) {
+        this.plugin = plugin;
+        this.florentinoSkill = new FlorentinoSkill(plugin);
+    }
 
     // ── Click Detection ───────────────────────────────────────────────────────
 
@@ -40,6 +46,11 @@ public class WeaponListener implements Listener {
         if (rightClick && !shift) {
             // P.Phai giu -> Skill 1
             e.setCancelled(true);
+            // Florentino: click phai nem hoa
+            if ("FLORENTINO_SWORD".equals(weapon.getId())) {
+                florentinoSkill.throwFlowers(player);
+                return;
+            }
             if (weapon.getSkill1() != null) {
                 plugin.getSkillEngine().executeSkill(player, weapon, weapon.getSkill1(), state);
             }
@@ -69,6 +80,21 @@ public class WeaponListener implements Listener {
 
         // Override damage voi base damage cua weapon
         e.setDamage(weapon.getBaseDamage());
+
+        // Florentino passive dash — uu tien truoc passive thuong
+        if ("FLORENTINO_SWORD".equals(weapon.getId())) {
+            PlayerWeaponState florState = plugin.getWeaponManager().getState(player);
+            boolean dashed = florentinoSkill.onHit(
+                player,
+                (org.bukkit.entity.LivingEntity) e.getEntity(),
+                florState,
+                weapon.getBaseDamage()
+            );
+            if (dashed) {
+                e.setCancelled(true); // Dame duoc xu ly trong dash
+                return;
+            }
+        }
 
         // Passive xu ly
         handlePassive(player, weapon, (org.bukkit.entity.LivingEntity) e.getEntity(), e);
