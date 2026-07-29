@@ -351,3 +351,28 @@ weapons:
       animation: IAIDO_COMBO
       particle: CRIT
       sound: ENTITY_PLAYER_ATTACK_CRIT
+
+  FLORENTINO_SWORD:
+    display-name: "&d&lKiem Florentino"
+    type: SWORD
+    affinity: ARCANE
+    base-damage: 8.0
+    material: GOLDEN_SWORD
+    custom-model-data: 5001
+
+    passive:
+      id: FLORENTINO_READY
+      description: "Sau 30s hoac nhat hoa, don danh toi biet thanh Dash xuyen muc tieu"
+
+    # Skill 1: click phai = nem 3 hoa
+    skill1:
+      id: FLORENTINO_THROW
+      name: "Nem Hoa"
+      description: "Nem 3 bong hoa xung quanh. Dash den hoa de nhat va reset noi tai"
+      cooldown: 8
+      mana-cost: 20
+      particle-type: CHERRY_LEAVES
+
+    mana-cost-skill1: 20
+    mana-cost-skill2: 0
+    mana-cost-ultimate: 0
