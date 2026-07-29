@@ -1,0 +1,24 @@
+# ElysiumWeapon Config
+weapon:
+  # Damage multiplier chung
+  damage-multiplier: 1.0
+
+  # Mastery EXP nhan duoc khi danh mob
+  exp-per-hit: 5
+  exp-per-kill: 20
+
+  # Combo
+  combo:
+    # Thoi gian giua cac click (ms)
+    click-timeout: 600
+
+  # Particle
+  particle:
+    enabled: true
+
+  # Sound
+  sound:
+    enabled: true
+
+# Debug mode
+debug: false
