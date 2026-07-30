@@ -262,7 +262,7 @@ public class FlorentinoSkill {
                             PotionEffectType.SLOWNESS, 280, 0, false, true, true));
 
                     world.playSound(hit.getLocation(), Sound.ENTITY_PLAYER_ATTACK_CRIT, 1f, 0.6f);
-                    world.spawnParticle(Particle.CRIT_MAGIC, hit.getLocation().add(0,1,0),
+                    world.spawnParticle(Particle.ENCHANTED_HIT, hit.getLocation().add(0,1,0),
                             20, 0.5, 0.5, 0.5, 0.1);
                     world.spawnParticle(Particle.ENCHANTED_HIT, hit.getLocation().add(0,1,0),
                             15, 0.4, 0.4, 0.4, 0.08);
