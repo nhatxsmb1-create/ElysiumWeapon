@@ -16,12 +16,10 @@ public class FlorentinoSkill {
 
     private final ElysiumWeapon plugin;
 
-    // ── Keys ─────────────────────────────────────────────────────────────────
+    // ── Keys & Config ────────────────────────────────────────────────────────
     public static final String PASSIVE_KEY   = "FLORENTINO_READY";
     public static final String CD_KEY        = "FLORENTINO_PASSIVE_CD";
     public static final int    PASSIVE_CD    = 20;   // giay
-
-    public static final String DASH_CD_KEY   = "FLORENTINO_DASH_CD"; // Chống spam lướt dồn hoa
 
     public static final String SKILL1_CD     = "FLORENTINO_SKILL1_CD";
     public static final int    SKILL1_CD_S   = 7;    // giay
@@ -34,6 +32,10 @@ public class FlorentinoSkill {
     public static final int    ULT_CD_S      = 15;   // giay
     public static final int    ULT_MANA      = 30;
     public static final int    ULT_DURATION  = 280;  // tick = 14s
+
+    // Cooldown lướt hoa dạng Milliseconds (0.25 giây)
+    private static final long DASH_COOLDOWN_MS = 250L;
+    private final Map<UUID, Long> lastDashTimes = new HashMap<>();
 
     private final Map<UUID, Set<UUID>> markedTargets = new HashMap<>();
     private final Map<UUID, List<FlowerEntry>> flowerMap = new HashMap<>();
@@ -123,29 +125,46 @@ public class FlorentinoSkill {
         }.runTaskTimer(plugin, 0, 1);
     }
 
-    // ── Chém trúng hoa → Teleport ─────────────────────────────────────────────
+    // ── Chém trúng hoa → Teleport (Tối ưu 250ms Cooldown) ───────────────────
 
     public boolean handleHitAndDash(Player player, LivingEntity target, PlayerWeaponState state) {
-        if (state.isOnCooldown(DASH_CD_KEY)) return false;
+        long now = System.currentTimeMillis();
+        long lastDash = lastDashTimes.getOrDefault(player.getUniqueId(), 0L);
 
-        FlowerEntry nearest = getNearestFlower(player, 10);
+        // Chống spam lướt dồn dập dưới 250ms
+        if (now - lastDash < DASH_COOLDOWN_MS) {
+            return false;
+        }
+
+        // Tăng bán kính tìm hoa lên 14m
+        FlowerEntry nearest = getNearestFlower(player, 14.0);
         if (nearest == null) return false;
 
-        state.setCooldown(DASH_CD_KEY, 1);
+        lastDashTimes.put(player.getUniqueId(), now);
         state.clearPassiveStack(PASSIVE_KEY);
-        executeDash(player, nearest, state);
+        executeDash(player, target, nearest, state);
         return true;
     }
 
-    // ── Lướt đến hoa ─────────────────────────────────────────────────────────
+    // ── Lướt đến hoa (Tự động xoay mặt về mob) ──────────────────────────────
 
-    private void executeDash(Player player, FlowerEntry target, PlayerWeaponState state) {
-        Location flowerLoc = target.location.clone().add(0.5, 0, 0.5);
+    private void executeDash(Player player, LivingEntity target, FlowerEntry flower, PlayerWeaponState state) {
+        Location flowerLoc = flower.location.clone().add(0.5, 0, 0.5);
         Location from = player.getLocation();
 
         Location land = flowerLoc.clone();
-        land.setYaw(from.getYaw());
-        land.setPitch(from.getPitch());
+        
+        // Tự động xoay mặt người chơi về phía Target để múa mượt hơn
+        if (target != null && target.isValid()) {
+            Vector dirToTarget = target.getLocation().add(0, 1, 0).subtract(land).toVector();
+            if (dirToTarget.lengthSquared() > 0) {
+                land.setDirection(dirToTarget);
+            }
+        } else {
+            land.setYaw(from.getYaw());
+            land.setPitch(from.getPitch());
+        }
+
         player.teleport(land);
 
         player.getWorld().playSound(land, Sound.ENTITY_ENDERMAN_TELEPORT, 0.4f, 1.5f);
@@ -163,7 +182,7 @@ public class FlorentinoSkill {
         }
 
         player.sendActionBar(color("&d✦ &fDash!"));
-        pickupFlower(player, target, state);
+        pickupFlower(player, flower, state);
     }
 
     // ── Nhặt hoa ─────────────────────────────────────────────────────────────
@@ -332,14 +351,15 @@ public class FlorentinoSkill {
     private void spawnFlowersAt(Location center, World world, Player player) {
         for (int i = 0; i < 3; i++) {
             double angle = Math.toRadians(i * 120.0);
-            double ox = 1.3 * Math.cos(angle);
-            double oz = 1.3 * Math.sin(angle);
+            double ox = 2.0 * Math.cos(angle);
+            double oz = 2.0 * Math.sin(angle);
             Location flowerLoc = findGround(new Location(world, center.getX() + ox, center.getY(), center.getZ() + oz));
 
             Item flower = world.dropItem(flowerLoc.clone().add(0, 0.2, 0), new ItemStack(Material.POPPY));
             flower.setPickupDelay(Integer.MAX_VALUE);
             flower.setVelocity(new Vector(0, 0, 0));
             flower.setGlowing(true);
+            flower.setInvulnerable(true); // Không bị phá hủy bởi lava/cháy
             flower.setCustomName(color("&d✦ Hoa Florentino"));
             flower.setCustomNameVisible(true);
 
@@ -374,10 +394,19 @@ public class FlorentinoSkill {
         list.removeIf(f -> now > f.expireMs);
 
         FlowerEntry nearest = null;
-        double minDist = maxDist * maxDist;
+        double minDistSq = maxDist * maxDist;
+        Location pLoc = player.getLocation();
+
         for (FlowerEntry f : list) {
-            double d = player.getLocation().distanceSquared(f.location.clone().add(0.5, 0, 0.5));
-            if (d < minDist) { minDist = d; nearest = f; }
+            double dx = pLoc.getX() - (f.location.getX() + 0.5);
+            double dy = (pLoc.getY() - f.location.getY()) * 0.5; // Giảm trọng số chênh lệch độ cao Y
+            double dz = pLoc.getZ() - (f.location.getZ() + 0.5);
+            double distSq = dx * dx + dy * dy + dz * dz;
+
+            if (distSq < minDistSq) {
+                minDistSq = distSq;
+                nearest = f;
+            }
         }
         return nearest;
     }
@@ -406,7 +435,7 @@ public class FlorentinoSkill {
         double apx = p.getX()-a.getX(), apz = p.getZ()-a.getZ();
         double ab2 = abx*abx + abz*abz;
         if (ab2 == 0) return 0;
-        return (apx*abx + apz*abz) / ab2;
+        return (apx*abx + apz*apz) / ab2;
     }
 
     private double distToLine(Location a, Location b, Location p) {
@@ -428,4 +457,4 @@ public class FlorentinoSkill {
             this.expireMs = expireMs;
         }
     }
-}
+            }
