@@ -55,13 +55,11 @@ public class WeaponListener implements Listener {
                 plugin.getSkillEngine().executeSkill(player, weapon, weapon.getSkill1(), state);
             }
         } else if (rightClick && shift) {
-            // Shift + P.Phai -> Skill 2 (Florentino: Ultimate)
             e.setCancelled(true);
+            // Florentino: Shift + Click phai → Ultimate
             if ("FLORENTINO_SWORD".equals(weapon.getId())) {
                 florentinoSkill.castUltimate(player);
-                return;
-            }
-            if (weapon.getSkill2() != null) {
+            } else if (weapon.getSkill2() != null) {
                 plugin.getSkillEngine().executeSkill(player, weapon, weapon.getSkill2(), state);
             }
         } else if (leftClick && shift) {
@@ -85,15 +83,18 @@ public class WeaponListener implements Listener {
         // Override damage voi base damage cua weapon
         e.setDamage(weapon.getBaseDamage());
 
-        // Florentino: chem trung co noi tai → dash den hoa + sweep
+        // Florentino: chi dash sau khi chem TRUNG mob — damage da duoc tinh truoc
+        // Khong cancel event o day → hit land binh thuong, sau do teleport den hoa
         if ("FLORENTINO_SWORD".equals(weapon.getId())) {
             PlayerWeaponState florState = plugin.getWeaponManager().getState(player);
-            boolean dashed = florentinoSkill.onHit(player,
-                (org.bukkit.entity.LivingEntity) e.getEntity(), florState);
-            if (dashed) {
-                e.setCancelled(true);
-                return;
+
+            // Noi tai 3: Vortex AOE — uu tien kiem tra truoc dash
+            if (e.getEntity() instanceof org.bukkit.entity.LivingEntity target) {
+                florentinoSkill.onHitDuringVortex(player, target, florState);
             }
+
+            boolean dashed = florentinoSkill.onLeftClick(player, florState);
+            if (dashed) return; // Da dash → bo qua combo/passive lan nay
         }
 
         // Passive xu ly
