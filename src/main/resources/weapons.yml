@@ -352,67 +352,69 @@ weapons:
       particle: CRIT
       sound: ENTITY_PLAYER_ATTACK_CRIT
 
-    FLORENTINO_SWORD:
-      display-name: "&d&lKiếm Florentino"
-      type: SWORD
-      class-affinity: NONE
-      material: GOLDEN_SWORD
-      model-data: 5001
-      unbreakable: true
-      hide-flags:
-        - HIDE_UNBREAKABLE
-        - HIDE_ATTRIBUTES
-      lore:
-        - "&7Chủng loại: &fSong Đấu Kiếm"
-        - ""
-        - "&fSát thương cơ bản: &c8.0"
-        - ""
-        - "&e&l[Nội Tại - Xuất Hoa]"
-        - " &7• Sau 20s hoặc nhặt hoa, đòn đánh kế tiếp biến thành &dLướt&7."
-        - " &7• Nhặt hoa: Hồi ngay &a8% Máu&7 + nhận &bSpeed II (1.2s)&7."
-        - ""
-        - "&e&l[Chuột Phải - Thưởng Hoa]"
-        - " &7• Phóng hoa gây &cChoáng 0.5s&7 & tạo 3 bông hoa xung quanh."
-        - " &7• Mana: &b12&7 | Cooldown: &e7s"
-        - ""
-        - "&e&l[Chém Thường - Thưởng Kiếm]"
-        - " &7• Đòn 1: Sát thương + Làm chậm"
-        - " &7• Đòn 2: &e&lHất tung mục tiêu"
-        - " &7• Đòn 3: Sát thương lớn + &a-1.5s Cooldown Chiêu 1"
-        - ""
-        - "&e&l[Shift + Chuột Phải - Tài Hoa]"
-        - " &7• Ghim mục tiêu, nhận &aMiễn khống chế 14s&7."
-        - " &7• Đánh mục tiêu bị ghim: &c+25% Dame&7 & &ax2 Hồi máu&7."
-        - " &7• Mana: &b30&7 | Cooldown: &e15s"
-        - ""
-        - "&8ID: FLORENTINO_SWORD"
-      base-damage: 8.0
-      base-speed: 1.6
-      mana-cost-skill1: 12
-      mana-cost-skill2: 0
-      mana-cost-ultimate: 30
+  # ── FLORENTINO ─────────────────────────────────────────────────────────────
 
-      passive:
-        id: FLORENTINO_READY
-        description: "Sau 20s hoặc nhặt hoa, đòn đánh kế tiếp biến thành Lướt."
+  FLORENTINO_SWORD:
+    display-name: "&d&lKiếm Florentino"
+    type: SWORD
+    class-affinity: NONE
+    material: GOLDEN_SWORD
+    model-data: 5001
+    unbreakable: true
+    hide-flags:
+      - HIDE_UNBREAKABLE
+      - HIDE_ATTRIBUTES
+    lore:
+      - "&7Chủng loại: &fSong Đấu Kiếm"
+      - ""
+      - "&fSát thương cơ bản: &c8.0"
+      - ""
+      - "&e&l[Nội Tại - Xuất Hoa]"
+      - " &7• Sau 20s hoặc nhặt hoa, đòn đánh kế tiếp biến thành &dLướt&7."
+      - " &7• Nhặt hoa: Hồi ngay &a8% Máu&7 + nhận &bSpeed II (1.2s)&7."
+      - ""
+      - "&e&l[Chuột Phải - Thưởng Hoa]"
+      - " &7• Phóng hoa gây &cChoáng 0.5s&7 & tạo 3 bông hoa xung quanh."
+      - " &7• Mana: &b12&7 | Cooldown: &e7s"
+      - ""
+      - "&e&l[Chém Thường - Thưởng Kiếm]"
+      - " &7• Đòn 1: Sát thương + Làm chậm"
+      - " &7• Đòn 2: &e&lHất tung mục tiêu"
+      - " &7• Đòn 3: Sát thương lớn + &a-1.5s Cooldown Chiêu 1"
+      - ""
+      - "&e&l[Shift + Chuột Phải - Tài Hoa]"
+      - " &7• Ghim mục tiêu, nhận &aMiễn khống chế 14s&7."
+      - " &7• Đánh mục tiêu bị ghim: &c+25% Dame&7 & &ax2 Hồi máu&7."
+      - " &7• Mana: &b30&7 | Cooldown: &e15s"
+      - ""
+      - "&8ID: FLORENTINO_SWORD"
+    base-damage: 8.0
+    base-speed: 1.6
+    mana-cost-skill1: 12
+    mana-cost-skill2: 0
+    mana-cost-ultimate: 30
 
-      skill1:
-        id: FLORENTINO_THROW
-        name: "&dThưởng Hoa"
-        description: "Ném 3 bông hoa, gây choáng 0.5s."
-        cooldown: 7
-        mana-cost: 12
+    passive:
+      id: FLORENTINO_READY
+      description: "Sau 20s hoặc nhặt hoa, đòn đánh kế tiếp biến thành Lướt."
 
-      skill2:
-        id: FLORENTINO_VORTEX
-        name: "&bThưởng Kiếm"
-        description: "Chuỗi 3 đòn chém: Slow -> Hất tung -> Giảm hồi chiêu 1."
-        cooldown: 0
-        mana-cost: 0
+    skill1:
+      id: FLORENTINO_THROW
+      name: "&dThưởng Hoa"
+      description: "Ném 3 bông hoa, gây choáng 0.5s."
+      cooldown: 7
+      mana-cost: 12
 
-      ultimate:
-        id: FLORENTINO_ULT
-        name: "&5Tài Hoa"
-        description: "Thách đấu mục tiêu, miễn khống chế 14s."
-        cooldown: 15
-        mana-cost: 30
+    skill2:
+      id: FLORENTINO_VORTEX
+      name: "&bThưởng Kiếm"
+      description: "Chuỗi 3 đòn chém: Slow -> Hất tung -> Giảm hồi chiêu 1."
+      cooldown: 0
+      mana-cost: 0
+
+    ultimate:
+      id: FLORENTINO_ULT
+      name: "&5Tài Hoa"
+      description: "Thách đấu mục tiêu, miễn khống chế 14s."
+      cooldown: 15
+      mana-cost: 30
