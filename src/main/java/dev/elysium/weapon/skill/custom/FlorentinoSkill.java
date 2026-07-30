@@ -3,7 +3,6 @@ package dev.elysium.weapon.skill.custom;
 import dev.elysium.weapon.ElysiumWeapon;
 import dev.elysium.weapon.weapon.PlayerWeaponState;
 import org.bukkit.*;
-import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.*;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.potion.PotionEffect;
@@ -85,7 +84,7 @@ public class FlorentinoSkill {
         }.runTaskTimer(plugin, 400L, 400L);
     }
 
-    // ── Skill 1: Ném hoa (Stun 0.5s chuẩn Liên Quân) ─────────────────────────
+    // ── Skill 1: Ném hoa ─────────────────────────────────────────────────────
 
     public void throwFlowers(Player player) {
         PlayerWeaponState state = plugin.getWeaponManager().getState(player);
@@ -122,7 +121,7 @@ public class FlorentinoSkill {
                     cancel();
                     if (hit == null) return;
                     
-                    // Khống chế cứng Stun 0.5s khi ném trúng hoa
+                    // Stun 0.5s
                     hit.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 10, 255, false, false, false));
                     hit.addPotionEffect(new PotionEffect(PotionEffectType.JUMP_BOOST, 10, 128, false, false, false));
                     
@@ -182,7 +181,7 @@ public class FlorentinoSkill {
         pickupFlower(player, target, flower, state);
     }
 
-    // ── Nhặt hoa: Hồi 8% Máu & Tăng tốc chạy ───────────────────────────────
+    // ── Nhặt hoa: Fix dùng player.getMaxHealth() ─────────────────────────────
 
     private void pickupFlower(Player player, LivingEntity target, FlowerEntry entry, PlayerWeaponState state) {
         removeFlowerById(player.getWorld(), entry.entityId);
@@ -192,26 +191,24 @@ public class FlorentinoSkill {
         state.clearPassiveStack(VORTEX_KEY);
         state.addPassiveStack(VORTEX_KEY, 3, 200);
 
-        // Hồi 8% Máu tối đa (Nhân đôi nếu đang đánh con bị ghim Ult)
-        double maxHp = 20.0;
-        var attr = player.getAttribute(Attribute.GENERIC_MAX_HEALTH);
-        if (attr != null) maxHp = attr.getValue();
-
+        // ĐÃ FIX: Dùng player.getMaxHealth() trực tiếp
+        double maxHp = player.getMaxHealth();
         double healAmount = maxHp * 0.08;
+
         if (target != null && isMarked(player, target)) {
             healAmount *= 2.0; // x2 Hồi máu chuẩn LQ
         }
 
         player.setHealth(Math.min(maxHp, player.getHealth() + healAmount));
 
-        // Tăng tốc chạy Speed II trong 1.2s (Bước hoa linh hoạt)
+        // Tăng tốc chạy Speed II trong 1.2s
         player.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 25, 1, false, false, false));
 
         player.sendActionBar(color("&d✦ &fNhặt hoa! &a+" + (int)healAmount + " HP &6[Bước Hoa]"));
         player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 0.6f, 1.6f);
     }
 
-    // ── Chiêu 2 (Thưởng Kiếm): Chuỗi đòn 1 Slow - 2 Hất Tung - 3 Giảm CD Chiêu 1 ──
+    // ── Chiêu 2 (Thưởng Kiếm): Fix ép kiểu long sang int ở dòng 253 ─────────
 
     public boolean onHitDuringVortex(Player player, LivingEntity target, PlayerWeaponState state) {
         int stacks = state.getPassiveStack(VORTEX_KEY);
@@ -229,7 +226,6 @@ public class FlorentinoSkill {
         int count = vortexHitCounters.getOrDefault(playerUUID, 0) + 1;
 
         if (count == 1) {
-            // Đòn 1: Sát thương + Làm chậm
             dealSkillDamage(target, player, baseDmg * 0.8);
             target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 30, 1, false, false, false));
             world.playSound(center, Sound.ENTITY_PLAYER_ATTACK_SWEEP, 0.6f, 1.2f);
@@ -237,7 +233,6 @@ public class FlorentinoSkill {
             vortexHitCounters.put(playerUUID, 1);
 
         } else if (count == 2) {
-            // Đòn 2: Hất tung nhẹ (Knockup)
             dealSkillDamage(target, player, baseDmg * 1.0);
             target.setVelocity(new Vector(0, 0.35, 0)); // Hất tung 0.35m
             world.playSound(center, Sound.ENTITY_PLAYER_ATTACK_KNOCKBACK, 0.7f, 1.4f);
@@ -245,13 +240,12 @@ public class FlorentinoSkill {
             vortexHitCounters.put(playerUUID, 2);
 
         } else {
-            // Đòn 3: Sát thương chuẩn + Giảm 1.5s hồi Chiêu 1 (Ném Hoa)
             dealSkillDamage(target, player, baseDmg * 1.5);
             
-            // Giảm 1.5 giây hồi Chiêu 1
+            // ĐÃ FIX (Dòng 253): Ép kiểu (int) an toàn
             if (state.isOnCooldown(SKILL1_CD)) {
-                int rem = state.getCooldownRemaining(SKILL1_CD);
-                state.setCooldown(SKILL1_CD, Math.max(0, rem - 1));
+                long rem = (long) state.getCooldownRemaining(SKILL1_CD);
+                state.setCooldown(SKILL1_CD, (int) Math.max(0L, rem - 1L));
             }
 
             world.spawnParticle(Particle.CRIT, target.getLocation().add(0, 1, 0), 10, 0.2, 0.4, 0.2, 0.05);
@@ -260,7 +254,6 @@ public class FlorentinoSkill {
             vortexHitCounters.put(playerUUID, 0);
         }
 
-        // Particle vòng xoay
         for (int i = 0; i < 8; i++) {
             double angle = Math.toRadians((360.0 / 8) * i);
             world.spawnParticle(Particle.CHERRY_LEAVES,
@@ -271,7 +264,7 @@ public class FlorentinoSkill {
         return true;
     }
 
-    // ── Ultimate (Tài Hoa): Ghim & Miễn khống ───────────────────────────────
+    // ── Ultimate (Tài Hoa) ────────────────────────────────────────────────────
 
     public void castUltimate(Player player) {
         PlayerWeaponState state = plugin.getWeaponManager().getState(player);
@@ -483,4 +476,4 @@ public class FlorentinoSkill {
             this.expireMs = expireMs;
         }
     }
-                                  }
+}
