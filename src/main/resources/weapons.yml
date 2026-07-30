@@ -381,13 +381,6 @@ weapons:
       cooldown: 7
       mana-cost: 12
 
-    skill2:
-      id: FLORENTINO_VORTEX
-      name: "Thưởng Kiếm"
-      description: "Đòn 1 Slow -> Đòn 2 Hất tung -> Đòn 3 -1.5s Cooldown C1"
-      cooldown: 0
-      mana-cost: 0
-
     ultimate:
       id: FLORENTINO_ULT
       name: "Tài Hoa"
