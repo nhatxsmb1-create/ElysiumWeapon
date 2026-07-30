@@ -39,7 +39,6 @@ public class FlorentinoSkill {
     private final Map<UUID, List<FlowerEntry>> flowerMap = new HashMap<>();
     private final Map<UUID, Integer> vortexHitCounters = new HashMap<>();
 
-    // Flag chặn vòng lặp event sát thương
     private boolean isInternalDamage = false;
 
     public FlorentinoSkill(ElysiumWeapon plugin) {
@@ -51,7 +50,6 @@ public class FlorentinoSkill {
         return isInternalDamage;
     }
 
-    // Helper gây sát thương an toàn không trigger lại Listener
     private void dealSkillDamage(LivingEntity target, Player damager, double damage) {
         isInternalDamage = true;
         try {
@@ -125,17 +123,15 @@ public class FlorentinoSkill {
         }.runTaskTimer(plugin, 0, 1);
     }
 
-    // ── Chém trúng hoa $\rightarrow$ Teleport (Đã giới hạn khoảng cách & cooldown lướt) ──
+    // ── Chém trúng hoa → Teleport ─────────────────────────────────────────────
 
     public boolean handleHitAndDash(Player player, LivingEntity target, PlayerWeaponState state) {
-        // Chống lặp lướt quá nhanh gây nuốt hoa 1 lúc
         if (state.isOnCooldown(DASH_CD_KEY)) return false;
 
-        // Giảm khoảng cách tìm hoa tối đa xuống 10 block để cân bằng
         FlowerEntry nearest = getNearestFlower(player, 10);
         if (nearest == null) return false;
 
-        state.setCooldown(DASH_CD_KEY, 0.35); // Khóa lướt 0.35s giữa các lần
+        state.setCooldown(DASH_CD_KEY, 1);
         state.clearPassiveStack(PASSIVE_KEY);
         executeDash(player, nearest, state);
         return true;
@@ -153,7 +149,6 @@ public class FlorentinoSkill {
         player.teleport(land);
 
         player.getWorld().playSound(land, Sound.ENTITY_ENDERMAN_TELEPORT, 0.4f, 1.5f);
-        // Tối ưu số lượng particle giảm lag
         player.getWorld().spawnParticle(Particle.CHERRY_LEAVES, land.clone().add(0, 1, 0), 6, 0.3, 0.3, 0.3, 0.02);
 
         double baseDamage = getBaseDamage();
@@ -202,7 +197,6 @@ public class FlorentinoSkill {
         UUID playerUUID = player.getUniqueId();
         int count = vortexHitCounters.getOrDefault(playerUUID, 0) + 1;
 
-        // Đã sửa dùng dealSkillDamage để không bị lặp event gây lag
         for (Entity e : world.getNearbyEntities(center, 2.5, 1.5, 2.5)) {
             if (!(e instanceof LivingEntity le) || e instanceof Player) continue;
             dealSkillDamage(le, player, aoeDamage);
@@ -222,7 +216,6 @@ public class FlorentinoSkill {
             player.sendActionBar(color("&d✦ &bXoáy Phong! &7[" + count + "/3]"));
         }
 
-        // Particle vòng tròn tối ưu gọn nhẹ (8 điểm thay vì 16)
         for (int i = 0; i < 8; i++) {
             double angle = Math.toRadians((360.0 / 8) * i);
             world.spawnParticle(Particle.CHERRY_LEAVES,
@@ -312,7 +305,6 @@ public class FlorentinoSkill {
         world.playSound(hitLoc, Sound.ENTITY_ENDER_DRAGON_HURT, 0.5f, 1.6f);
         player.sendActionBar(color("&5✦ &d&lTrúng! &7[Marked] &a[Miễn CC 14s]"));
 
-        // Chạy kiểm tra vị trí mỗi 2 tick (10Hz) thay vì 1 tick để đỡ tốn RAM/CPU
         new BukkitRunnable() {
             int ticks = 0;
 
@@ -414,7 +406,7 @@ public class FlorentinoSkill {
         double apx = p.getX()-a.getX(), apz = p.getZ()-a.getZ();
         double ab2 = abx*abx + abz*abz;
         if (ab2 == 0) return 0;
-        return (apx*abx + apz*apz) / ab2;
+        return (apx*abx + apz*abz) / ab2;
     }
 
     private double distToLine(Location a, Location b, Location p) {
