@@ -65,6 +65,9 @@ public class WeaponListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onAttack(EntityDamageByEntityEvent e) {
+        // CHẶN VÒNG LẶP: Bỏ qua nếu đây là sát thương do skill tự gây ra
+        if (florentinoSkill.isInternalDamage()) return;
+
         if (!(e.getDamager() instanceof Player player)) return;
 
         WeaponData weapon = plugin.getWeaponManager().getHeldWeaponData(player);
@@ -72,15 +75,12 @@ public class WeaponListener implements Listener {
 
         e.setDamage(weapon.getBaseDamage());
 
-        // Florentino: Chem trung mob 1 lan -> TP den hoa + Kich hoat Vortex chem lan
         if ("FLORENTINO_SWORD".equals(weapon.getId())) {
             PlayerWeaponState florState = plugin.getWeaponManager().getState(player);
 
             if (e.getEntity() instanceof org.bukkit.entity.LivingEntity target) {
-                // Chem lan Vortex
                 florentinoSkill.onHitDuringVortex(player, target, florState);
 
-                // Chem trung 1 lan -> TP toi hoa ngay lập tức
                 boolean dashed = florentinoSkill.handleHitAndDash(player, target, florState);
                 if (dashed) return;
             }
@@ -187,4 +187,4 @@ public class WeaponListener implements Listener {
     }
 
     private String color(String s) { return s.replace("&", "\u00a7"); }
-}
+            }
