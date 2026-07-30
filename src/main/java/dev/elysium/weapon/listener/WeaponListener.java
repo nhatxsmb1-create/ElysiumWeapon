@@ -55,8 +55,12 @@ public class WeaponListener implements Listener {
                 plugin.getSkillEngine().executeSkill(player, weapon, weapon.getSkill1(), state);
             }
         } else if (rightClick && shift) {
-            // Shift + P.Phai -> Skill 2
+            // Shift + P.Phai -> Skill 2 (Florentino: Ultimate)
             e.setCancelled(true);
+            if ("FLORENTINO_SWORD".equals(weapon.getId())) {
+                florentinoSkill.castUltimate(player);
+                return;
+            }
             if (weapon.getSkill2() != null) {
                 plugin.getSkillEngine().executeSkill(player, weapon, weapon.getSkill2(), state);
             }
@@ -81,12 +85,15 @@ public class WeaponListener implements Listener {
         // Override damage voi base damage cua weapon
         e.setDamage(weapon.getBaseDamage());
 
-        // Florentino: chi dash sau khi chem TRUNG mob — damage da duoc tinh truoc
-        // Khong cancel event o day → hit land binh thuong, sau do teleport den hoa
+        // Florentino: chem trung co noi tai → dash den hoa + sweep
         if ("FLORENTINO_SWORD".equals(weapon.getId())) {
             PlayerWeaponState florState = plugin.getWeaponManager().getState(player);
-            boolean dashed = florentinoSkill.onLeftClick(player, florState);
-            if (dashed) return; // Da dash → bo qua combo/passive lan nay
+            boolean dashed = florentinoSkill.onHit(player,
+                (org.bukkit.entity.LivingEntity) e.getEntity(), florState);
+            if (dashed) {
+                e.setCancelled(true);
+                return;
+            }
         }
 
         // Passive xu ly
