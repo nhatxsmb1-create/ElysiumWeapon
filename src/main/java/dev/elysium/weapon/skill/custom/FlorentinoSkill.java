@@ -3,6 +3,7 @@ package dev.elysium.weapon.skill.custom;
 import dev.elysium.weapon.ElysiumWeapon;
 import dev.elysium.weapon.weapon.PlayerWeaponState;
 import org.bukkit.*;
+import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.*;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.potion.PotionEffect;
@@ -33,7 +34,7 @@ public class FlorentinoSkill {
     public static final int    ULT_MANA      = 30;
     public static final int    ULT_DURATION  = 280;  // tick = 14s
 
-    // Cooldown lướt hoa dạng Milliseconds (0.25 giây)
+    // Cooldown lướt hoa (250ms)
     private static final long DASH_COOLDOWN_MS = 250L;
     private final Map<UUID, Long> lastDashTimes = new HashMap<>();
 
@@ -55,6 +56,10 @@ public class FlorentinoSkill {
     private void dealSkillDamage(LivingEntity target, Player damager, double damage) {
         isInternalDamage = true;
         try {
+            // Tăng +25% Damage nếu mục tiêu đang bị ghim Ult (Marked)
+            if (isMarked(damager, target)) {
+                damage *= 1.25;
+            }
             target.damage(damage, damager);
         } finally {
             isInternalDamage = false;
@@ -80,7 +85,7 @@ public class FlorentinoSkill {
         }.runTaskTimer(plugin, 400L, 400L);
     }
 
-    // ── Skill 1: Ném hoa ─────────────────────────────────────────────────────
+    // ── Skill 1: Ném hoa (Stun 0.5s chuẩn Liên Quân) ─────────────────────────
 
     public void throwFlowers(Player player) {
         PlayerWeaponState state = plugin.getWeaponManager().getState(player);
@@ -116,27 +121,27 @@ public class FlorentinoSkill {
                 if (hit != null || dist >= 6) {
                     cancel();
                     if (hit == null) return;
+                    
+                    // Khống chế cứng Stun 0.5s khi ném trúng hoa
+                    hit.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 10, 255, false, false, false));
+                    hit.addPotionEffect(new PotionEffect(PotionEffectType.JUMP_BOOST, 10, 128, false, false, false));
+                    
                     spawnFlowersAt(hit.getLocation(), world, player);
-                    hit.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 30, 1, false, true, true));
                     world.playSound(hit.getLocation(), Sound.BLOCK_CHERRY_LEAVES_PLACE, 0.8f, 1.2f);
-                    player.sendActionBar(color("&d✦ &fTrúng! 3 hoa xuất hiện!"));
+                    player.sendActionBar(color("&d✦ &fChoáng & Trúng 3 hoa!"));
                 }
             }
         }.runTaskTimer(plugin, 0, 1);
     }
 
-    // ── Chém trúng hoa → Teleport (Tối ưu 250ms Cooldown) ───────────────────
+    // ── Lướt nhặt hoa ────────────────────────────────────────────────────────
 
     public boolean handleHitAndDash(Player player, LivingEntity target, PlayerWeaponState state) {
         long now = System.currentTimeMillis();
         long lastDash = lastDashTimes.getOrDefault(player.getUniqueId(), 0L);
 
-        // Chống spam lướt dồn dập dưới 250ms
-        if (now - lastDash < DASH_COOLDOWN_MS) {
-            return false;
-        }
+        if (now - lastDash < DASH_COOLDOWN_MS) return false;
 
-        // Tăng bán kính tìm hoa lên 14m
         FlowerEntry nearest = getNearestFlower(player, 14.0);
         if (nearest == null) return false;
 
@@ -146,27 +151,20 @@ public class FlorentinoSkill {
         return true;
     }
 
-    // ── Lướt đến hoa (Tự động xoay mặt về mob) ──────────────────────────────
-
     private void executeDash(Player player, LivingEntity target, FlowerEntry flower, PlayerWeaponState state) {
         Location flowerLoc = flower.location.clone().add(0.5, 0, 0.5);
         Location from = player.getLocation();
-
         Location land = flowerLoc.clone();
-        
-        // Tự động xoay mặt người chơi về phía Target để múa mượt hơn
+
         if (target != null && target.isValid()) {
             Vector dirToTarget = target.getLocation().add(0, 1, 0).subtract(land).toVector();
-            if (dirToTarget.lengthSquared() > 0) {
-                land.setDirection(dirToTarget);
-            }
+            if (dirToTarget.lengthSquared() > 0) land.setDirection(dirToTarget);
         } else {
             land.setYaw(from.getYaw());
             land.setPitch(from.getPitch());
         }
 
         player.teleport(land);
-
         player.getWorld().playSound(land, Sound.ENTITY_ENDERMAN_TELEPORT, 0.4f, 1.5f);
         player.getWorld().spawnParticle(Particle.CHERRY_LEAVES, land.clone().add(0, 1, 0), 6, 0.3, 0.3, 0.3, 0.02);
 
@@ -181,13 +179,12 @@ public class FlorentinoSkill {
             }
         }
 
-        player.sendActionBar(color("&d✦ &fDash!"));
-        pickupFlower(player, flower, state);
+        pickupFlower(player, target, flower, state);
     }
 
-    // ── Nhặt hoa ─────────────────────────────────────────────────────────────
+    // ── Nhặt hoa: Hồi 8% Máu & Tăng tốc chạy ───────────────────────────────
 
-    private void pickupFlower(Player player, FlowerEntry entry, PlayerWeaponState state) {
+    private void pickupFlower(Player player, LivingEntity target, FlowerEntry entry, PlayerWeaponState state) {
         removeFlowerById(player.getWorld(), entry.entityId);
 
         state.addPassiveStack(PASSIVE_KEY, 1, 99999);
@@ -195,11 +192,26 @@ public class FlorentinoSkill {
         state.clearPassiveStack(VORTEX_KEY);
         state.addPassiveStack(VORTEX_KEY, 3, 200);
 
-        player.sendActionBar(color("&d✦ &fNhặt hoa! &6[Bước Hoa] &b[Vortex x3]"));
+        // Hồi 8% Máu tối đa (Nhân đôi nếu đang đánh con bị ghim Ult)
+        double maxHp = 20.0;
+        var attr = player.getAttribute(Attribute.GENERIC_MAX_HEALTH);
+        if (attr != null) maxHp = attr.getValue();
+
+        double healAmount = maxHp * 0.08;
+        if (target != null && isMarked(player, target)) {
+            healAmount *= 2.0; // x2 Hồi máu chuẩn LQ
+        }
+
+        player.setHealth(Math.min(maxHp, player.getHealth() + healAmount));
+
+        // Tăng tốc chạy Speed II trong 1.2s (Bước hoa linh hoạt)
+        player.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 25, 1, false, false, false));
+
+        player.sendActionBar(color("&d✦ &fNhặt hoa! &a+" + (int)healAmount + " HP &6[Bước Hoa]"));
         player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 0.6f, 1.6f);
     }
 
-    // ── Xoáy Phong (Vortex) ─────────────────────────────────────────────────
+    // ── Chiêu 2 (Thưởng Kiếm): Chuỗi đòn 1 Slow - 2 Hất Tung - 3 Giảm CD Chiêu 1 ──
 
     public boolean onHitDuringVortex(Player player, LivingEntity target, PlayerWeaponState state) {
         int stacks = state.getPassiveStack(VORTEX_KEY);
@@ -211,30 +223,44 @@ public class FlorentinoSkill {
 
         World world = player.getWorld();
         Location center = target.getLocation().clone().add(0, 1, 0);
-        double aoeDamage = getBaseDamage() * 0.5;
+        double baseDmg = getBaseDamage();
 
         UUID playerUUID = player.getUniqueId();
         int count = vortexHitCounters.getOrDefault(playerUUID, 0) + 1;
 
-        for (Entity e : world.getNearbyEntities(center, 2.5, 1.5, 2.5)) {
-            if (!(e instanceof LivingEntity le) || e instanceof Player) continue;
-            dealSkillDamage(le, player, aoeDamage);
-        }
+        if (count == 1) {
+            // Đòn 1: Sát thương + Làm chậm
+            dealSkillDamage(target, player, baseDmg * 0.8);
+            target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 30, 1, false, false, false));
+            world.playSound(center, Sound.ENTITY_PLAYER_ATTACK_SWEEP, 0.6f, 1.2f);
+            player.sendActionBar(color("&d✦ &bThưởng Kiếm 1 &7[Slow]"));
+            vortexHitCounters.put(playerUUID, 1);
 
-        if (count >= 3) {
-            target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 20, 255, false, false, false));
-            target.addPotionEffect(new PotionEffect(PotionEffectType.JUMP_BOOST, 20, 128, false, false, false));
-            
-            world.spawnParticle(Particle.CRIT, target.getLocation().add(0, 1, 0), 8, 0.2, 0.4, 0.2, 0.05);
-            world.playSound(center, Sound.BLOCK_ANVIL_LAND, 0.5f, 1.5f);
-            player.sendActionBar(color("&d✦ &c&lĐỨNG IM! &fKhóa di chuyển 1s"));
-            vortexHitCounters.put(playerUUID, 0);
+        } else if (count == 2) {
+            // Đòn 2: Hất tung nhẹ (Knockup)
+            dealSkillDamage(target, player, baseDmg * 1.0);
+            target.setVelocity(new Vector(0, 0.35, 0)); // Hất tung 0.35m
+            world.playSound(center, Sound.ENTITY_PLAYER_ATTACK_KNOCKBACK, 0.7f, 1.4f);
+            player.sendActionBar(color("&d✦ &eThưởng Kiếm 2 &c&l[HẤT TUNG!]"));
+            vortexHitCounters.put(playerUUID, 2);
+
         } else {
-            vortexHitCounters.put(playerUUID, count);
-            world.playSound(center, Sound.ENTITY_PLAYER_ATTACK_SWEEP, 0.6f, 1.3f);
-            player.sendActionBar(color("&d✦ &bXoáy Phong! &7[" + count + "/3]"));
+            // Đòn 3: Sát thương chuẩn + Giảm 1.5s hồi Chiêu 1 (Ném Hoa)
+            dealSkillDamage(target, player, baseDmg * 1.5);
+            
+            // Giảm 1.5 giây hồi Chiêu 1
+            if (state.isOnCooldown(SKILL1_CD)) {
+                int rem = state.getCooldownRemaining(SKILL1_CD);
+                state.setCooldown(SKILL1_CD, Math.max(0, rem - 1));
+            }
+
+            world.spawnParticle(Particle.CRIT, target.getLocation().add(0, 1, 0), 10, 0.2, 0.4, 0.2, 0.05);
+            world.playSound(center, Sound.BLOCK_ANVIL_LAND, 0.5f, 1.6f);
+            player.sendActionBar(color("&d✦ &c&lThưởng Kiếm 3 &a[-1.5s CD Chiêu 1]"));
+            vortexHitCounters.put(playerUUID, 0);
         }
 
+        // Particle vòng xoay
         for (int i = 0; i < 8; i++) {
             double angle = Math.toRadians((360.0 / 8) * i);
             world.spawnParticle(Particle.CHERRY_LEAVES,
@@ -245,13 +271,13 @@ public class FlorentinoSkill {
         return true;
     }
 
-    // ── Ultimate ─────────────────────────────────────────────────────────────
+    // ── Ultimate (Tài Hoa): Ghim & Miễn khống ───────────────────────────────
 
     public void castUltimate(Player player) {
         PlayerWeaponState state = plugin.getWeaponManager().getState(player);
 
         if (state.isOnCooldown(ULT_CD_KEY)) {
-            player.sendActionBar(color("&cChiêu cuối đang hồi! &e" + state.getCooldownRemaining(ULT_CD_KEY) + "s"));
+            player.sendActionBar(color("&cTài Hoa đang hồi! &e" + state.getCooldownRemaining(ULT_CD_KEY) + "s"));
             return;
         }
         if (!dev.elysium.core.api.CoreAPI.useMana(player, ULT_MANA)) {
@@ -292,7 +318,7 @@ public class FlorentinoSkill {
         }.runTaskTimer(plugin, 0, 1);
 
         world.playSound(start, Sound.ENTITY_ENDERMAN_TELEPORT, 0.4f, 2.0f);
-        player.sendActionBar(color("&5✦ &d&lChiêu Cuối!"));
+        player.sendActionBar(color("&5✦ &d&lTài Hoa!"));
     }
 
     private void onUltimateHit(Player player, LivingEntity target, PlayerWeaponState state, World world) {
@@ -309,7 +335,7 @@ public class FlorentinoSkill {
         target.setGlowing(true);
 
         ArmorStand marker = (ArmorStand) world.spawnEntity(hitLoc.clone().add(0, target.getHeight() + 0.4, 0), EntityType.ARMOR_STAND);
-        marker.setCustomName(color("&c⚔ &4Marked"));
+        marker.setCustomName(color("&c⚔ &4Marked (+25% Dame)"));
         marker.setCustomNameVisible(true);
         marker.setGravity(false);
         marker.setVisible(false);
@@ -322,7 +348,7 @@ public class FlorentinoSkill {
         state.addPassiveStack("FLORENTINO_CC_IMMUNE", 1, ULT_DURATION);
 
         world.playSound(hitLoc, Sound.ENTITY_ENDER_DRAGON_HURT, 0.5f, 1.6f);
-        player.sendActionBar(color("&5✦ &d&lTrúng! &7[Marked] &a[Miễn CC 14s]"));
+        player.sendActionBar(color("&5✦ &d&lTài Hoa! &7[Ghim Mục Tiêu] &a[Miễn CC 14s]"));
 
         new BukkitRunnable() {
             int ticks = 0;
@@ -359,7 +385,7 @@ public class FlorentinoSkill {
             flower.setPickupDelay(Integer.MAX_VALUE);
             flower.setVelocity(new Vector(0, 0, 0));
             flower.setGlowing(true);
-            flower.setInvulnerable(true); // Không bị phá hủy bởi lava/cháy
+            flower.setInvulnerable(true);
             flower.setCustomName(color("&d✦ Hoa Florentino"));
             flower.setCustomNameVisible(true);
 
@@ -399,7 +425,7 @@ public class FlorentinoSkill {
 
         for (FlowerEntry f : list) {
             double dx = pLoc.getX() - (f.location.getX() + 0.5);
-            double dy = (pLoc.getY() - f.location.getY()) * 0.5; // Giảm trọng số chênh lệch độ cao Y
+            double dy = (pLoc.getY() - f.location.getY()) * 0.5;
             double dz = pLoc.getZ() - (f.location.getZ() + 0.5);
             double distSq = dx * dx + dy * dy + dz * dz;
 
@@ -457,4 +483,4 @@ public class FlorentinoSkill {
             this.expireMs = expireMs;
         }
     }
-            }
+                                  }
