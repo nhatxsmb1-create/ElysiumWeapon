@@ -5,6 +5,7 @@ import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
@@ -134,53 +135,64 @@ public class WeaponManager {
         ItemStack item = new ItemStack(mat);
         ItemMeta  meta = item.getItemMeta();
 
-        meta.setDisplayName(color(data.getDisplayName()));
-        meta.setCustomModelData(data.getModelData());
+        if (meta != null) {
+            meta.setDisplayName(color(data.getDisplayName()));
+            meta.setCustomModelData(data.getModelData());
 
-        // Lore
-        List<String> lore = new ArrayList<>();
-        lore.add(color("&8" + data.getType().name() + " | " + data.getAffinity().name()));
-        lore.add("");
-        data.getLore().forEach(l -> lore.add(color(l)));
-        lore.add("");
-        lore.add(color("&7Dame: &f" + data.getBaseDamage()));
-        if (data.getPassive() != null) {
+            // FIX: Đặt thuộc tính không thể phá hủy (Unbreakable) & Ẩn dòng chữ Unbreakable mặc định
+            meta.setUnbreakable(true);
+            meta.addItemFlags(ItemFlag.HIDE_UNBREAKABLE);
+            meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
+
+            // Lore
+            List<String> lore = new ArrayList<>();
+            lore.add(color("&8" + data.getType().name() + " | " + data.getAffinity().name()));
+            
+            if (data.getLore() != null && !data.getLore().isEmpty()) {
+                lore.add("");
+                data.getLore().forEach(l -> lore.add(color(l)));
+            }
+
             lore.add("");
-            lore.add(color("&6[Noi Tai] &f" + data.getPassive().getDescription()));
+            lore.add(color("&7Dame: &f" + data.getBaseDamage()));
+            if (data.getPassive() != null && !data.getPassive().getDescription().isEmpty()) {
+                lore.add("");
+                lore.add(color("&6[Noi Tai] &f" + data.getPassive().getDescription()));
+            }
+            lore.add("");
+            if (data.getSkill1() != null)
+                lore.add(color("&b[P.Phải giữ] &f" + data.getSkill1().getName() + " &7- " + data.getSkill1().getDescription()));
+            if (data.getSkill2() != null)
+                lore.add(color("&b[Shift+P.Phải] &f" + data.getSkill2().getName() + " &7- " + data.getSkill2().getDescription()));
+            if (data.getUltimate() != null)
+                lore.add(color("&c[Shift+P.Trái] &f" + data.getUltimate().getName() + " &7- " + data.getUltimate().getDescription()));
+            if (data.getCombo() != null)
+                lore.add(color("&e[Combo x" + data.getCombo().getTriggerClicks() + "] &f" + data.getCombo().getName()));
+            lore.add("");
+            lore.add(color("&8ID: " + weaponId));
+
+            meta.setLore(lore);
+
+            // NBT tag weapon ID
+            meta.getPersistentDataContainer().set(
+                    new org.bukkit.NamespacedKey(plugin, WEAPON_ID_KEY),
+                    org.bukkit.persistence.PersistentDataType.STRING,
+                    weaponId
+            );
+
+            // Vo hieu hoa damage mac dinh cua Bukkit (ElysiumCombat xu ly)
+            meta.addAttributeModifier(
+                    org.bukkit.attribute.Attribute.ATTACK_DAMAGE,
+                    new org.bukkit.attribute.AttributeModifier(
+                            new org.bukkit.NamespacedKey(plugin, "weapon_dmg"),
+                            0,
+                            org.bukkit.attribute.AttributeModifier.Operation.ADD_NUMBER,
+                            org.bukkit.inventory.EquipmentSlotGroup.MAINHAND
+                    )
+            );
+
+            item.setItemMeta(meta);
         }
-        lore.add("");
-        if (data.getSkill1() != null)
-            lore.add(color("&b[P.Phải giữ] &f" + data.getSkill1().getName() + " &7- " + data.getSkill1().getDescription()));
-        if (data.getSkill2() != null)
-            lore.add(color("&b[Shift+P.Phải] &f" + data.getSkill2().getName() + " &7- " + data.getSkill2().getDescription()));
-        if (data.getUltimate() != null)
-            lore.add(color("&c[Shift+P.Trái] &f" + data.getUltimate().getName() + " &7- " + data.getUltimate().getDescription()));
-        if (data.getCombo() != null)
-            lore.add(color("&e[Combo x" + data.getCombo().getTriggerClicks() + "] &f" + data.getCombo().getName()));
-        lore.add("");
-        lore.add(color("&8ID: " + weaponId));
-
-        meta.setLore(lore);
-
-        // NBT tag weapon ID
-        meta.getPersistentDataContainer().set(
-                new org.bukkit.NamespacedKey(plugin, WEAPON_ID_KEY),
-                org.bukkit.persistence.PersistentDataType.STRING,
-                weaponId
-        );
-
-        // Vo hieu hoa damage mac dinh cua Bukkit (ElysiumCombat xu ly)
-        meta.addAttributeModifier(
-                org.bukkit.attribute.Attribute.ATTACK_DAMAGE,
-                new org.bukkit.attribute.AttributeModifier(
-                        new org.bukkit.NamespacedKey(plugin, "weapon_dmg"),
-                        0,
-                        org.bukkit.attribute.AttributeModifier.Operation.ADD_NUMBER,
-                        org.bukkit.inventory.EquipmentSlotGroup.MAINHAND
-                )
-        );
-
-        item.setItemMeta(meta);
         return item;
     }
 
