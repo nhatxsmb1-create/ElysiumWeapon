@@ -39,6 +39,9 @@ public class FlorentinoSkill {
     // World UID → danh sach hoa tren san
     private final Map<UUID, List<FlowerEntry>> flowerMap = new HashMap<>();
 
+    // Bo dem so lan chem lan (Vortex) de gay hieu ung dung im 1s
+    private final Map<UUID, Integer> vortexHitCounters = new HashMap<>();
+
     public FlorentinoSkill(ElysiumWeapon plugin) {
         this.plugin = plugin;
         startPassiveTimer();
@@ -56,7 +59,7 @@ public class FlorentinoSkill {
                     if (state.getPassiveStack(PASSIVE_KEY) > 0) continue;
 
                     state.addPassiveStack(PASSIVE_KEY, 1, 99999);
-                    p.sendActionBar(color("&d✦ &fNoi tai san sang! &7[Click trai → Dash]"));
+                    p.sendActionBar(color("&d✦ &fNoi tai san sang! &7[Chem trung mob → TP den hoa]"));
                     p.playSound(p.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 0.7f, 1.4f);
                 }
             }
@@ -109,17 +112,13 @@ public class FlorentinoSkill {
         }.runTaskTimer(plugin, 0, 1);
     }
 
-    // ── Passive: Click trai co noi tai → Dash den hoa ───────────────────────
+    // ── Fix 1: Chem trung 1 lan la TP ngay lap tuc den hoa ────────────────────
 
-    public boolean onLeftClick(Player player, PlayerWeaponState state) {
-        if (state.getPassiveStack(PASSIVE_KEY) == 0) return false;
-
+    public boolean handleHitAndDash(Player player, LivingEntity target, PlayerWeaponState state) {
         FlowerEntry nearest = getNearestFlower(player, 20);
-        if (nearest == null) {
-            player.sendActionBar(color("&cKhong co hoa trong tam! Hay nem hoa truoc!"));
-            return false;
-        }
+        if (nearest == null) return false;
 
+        // Reset cooldown & xoa stack cu neu co de dash ngay
         state.clearPassiveStack(PASSIVE_KEY);
         state.setCooldown(CD_KEY, PASSIVE_CD);
         executeDash(player, nearest, state);
@@ -179,7 +178,7 @@ public class FlorentinoSkill {
         // Buoc Hoa: don danh tiep trong 3s +30% dame
         state.addPassiveStack(BUOC_HOA_KEY, 1, 60);
 
-        // Vortex: 3 don chem tiep theo lan AOE, don thu 3 hat tung
+        // Vortex: 3 don chem tiep theo lan AOE
         state.clearPassiveStack(VORTEX_KEY);
         state.addPassiveStack(VORTEX_KEY, 3, 200); // het han 10s
 
@@ -188,7 +187,7 @@ public class FlorentinoSkill {
         player.getWorld().spawnParticle(Particle.HEART, player.getLocation().add(0, 2, 0), 5, 0.3, 0.3, 0.3, 0);
     }
 
-    // ── Noi tai Vortex: chem lan AOE, don thu 3 hat tung ────────────────────
+    // ── Fix 2: Noi tai Vortex chem lan XOAN PHONG (3 lan gay DUNG IM 1s) ─────
 
     public boolean onHitDuringVortex(Player player, LivingEntity target, PlayerWeaponState state) {
         int stacks = state.getPassiveStack(VORTEX_KEY);
@@ -201,49 +200,41 @@ public class FlorentinoSkill {
         World world     = player.getWorld();
         Location center = target.getLocation().clone().add(0, 1, 0);
         double aoeDamage = getBaseDamage() * 0.6;
-        boolean isLast  = (remaining == 0);
 
-        // AOE radius 3 block — khong danh lai target chinh
-        for (Entity e : world.getNearbyEntities(center, 3, 2, 3)) {
-            if (!(e instanceof LivingEntity le) || e instanceof Player || e.equals(target)) continue;
+        // Dem so lan chem lan Vortex
+        UUID playerUUID = player.getUniqueId();
+        int count = vortexHitCounters.getOrDefault(playerUUID, 0) + 1;
+
+        // Chem lan kieu Xoan Phong cho tat ca mob xung quanh
+        for (Entity e : world.getNearbyEntities(center, 3.5, 2, 3.5)) {
+            if (!(e instanceof LivingEntity le) || e instanceof Player) continue;
             le.damage(aoeDamage, player);
-            if (isLast) {
-                Vector knockup = le.getLocation().toVector()
-                    .subtract(center.clone().subtract(0,1,0).toVector())
-                    .normalize().multiply(0.5).setY(0.55);
-                le.setVelocity(knockup);
-                world.spawnParticle(Particle.SWEEP_ATTACK, le.getLocation().add(0,1,0), 5, 0.3, 0.3, 0.3, 0);
-            } else {
-                world.spawnParticle(Particle.CHERRY_LEAVES, le.getLocation().add(0,1,0), 6, 0.3, 0.3, 0.3, 0.02);
-            }
+            world.spawnParticle(Particle.SWEEP_ATTACK, le.getLocation().add(0, 1, 0), 3);
         }
 
-        // Hat tung ca target chinh o don thu 3
-        if (isLast) {
-            Vector knockup = target.getLocation().toVector()
-                .subtract(center.clone().subtract(0,1,0).toVector())
-                .normalize().multiply(0.4).setY(0.55);
-            target.setVelocity(knockup);
+        // Neu da chem lan du 3 lan -> Gay DUNG IM (Khóa di chuyển) 1 giay (20 ticks)
+        if (count >= 3) {
+            target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 20, 255, false, false, false));
+            target.addPotionEffect(new PotionEffect(PotionEffectType.JUMP_BOOST, 20, 128, false, false, false));
+            
+            world.spawnParticle(Particle.CRIT, target.getLocation().add(0, 1, 0), 20, 0.3, 0.5, 0.3, 0.1);
+            world.playSound(center, Sound.BLOCK_ANVIL_LAND, 0.6f, 1.5f);
+            player.sendActionBar(color("&d✦ &c&lĐỨNG IM! &fMuc tieu bi khóa di chuyen 1s"));
+            vortexHitCounters.put(playerUUID, 0); // Reset dem
+        } else {
+            vortexHitCounters.put(playerUUID, count);
+            world.playSound(center, Sound.ENTITY_PLAYER_ATTACK_SWEEP, 0.8f, 1.3f);
+            player.sendActionBar(color("&d✦ &bXoan Phong! &7[Lần " + count + "/3]"));
         }
 
-        // Ring particle
-        int ringCount = isLast ? 24 : 16;
-        double r = isLast ? 3.0 : 2.5;
-        for (int i = 0; i < ringCount; i++) {
-            double angle = Math.toRadians((360.0 / ringCount) * i);
-            world.spawnParticle(
-                isLast ? Particle.SWEEP_ATTACK : Particle.CHERRY_LEAVES,
-                center.clone().add(r * Math.cos(angle), 0, r * Math.sin(angle)),
+        // Hieu ung hinh tron Xoan Phong
+        for (int i = 0; i < 16; i++) {
+            double angle = Math.toRadians((360.0 / 16) * i);
+            world.spawnParticle(Particle.CHERRY_LEAVES,
+                center.clone().add(2.5 * Math.cos(angle), 0, 2.5 * Math.sin(angle)),
                 2, 0.1, 0.1, 0.1, 0.01);
         }
 
-        if (isLast) {
-            world.playSound(center, Sound.ENTITY_ENDER_DRAGON_FLAP, 0.6f, 1.8f);
-            player.sendActionBar(color("&d✦ &b&lVortex Burst! &fHat tung!"));
-        } else {
-            world.playSound(center, Sound.BLOCK_CHERRY_LEAVES_PLACE, 0.8f, 1.3f);
-            player.sendActionBar(color("&d✦ &bVortex! &7[Con " + remaining + " don]"));
-        }
         return true;
     }
 
@@ -268,7 +259,6 @@ public class FlorentinoSkill {
         Location start = player.getEyeLocation();
         Vector dir = start.getDirection().normalize();
 
-        // ── Lao thang ra truoc toi da 10 block ──────────────────────────────
         new BukkitRunnable() {
             double dist = 0;
             boolean hit = false;
@@ -278,15 +268,12 @@ public class FlorentinoSkill {
                 dist += 0.6;
                 Location cur = start.clone().add(dir.clone().multiply(dist));
 
-                // Particle khi lao
                 world.spawnParticle(Particle.SWEEP_ATTACK, cur, 2, 0.15, 0.15, 0.15, 0);
                 world.spawnParticle(Particle.CHERRY_LEAVES, cur, 4, 0.2, 0.2, 0.2, 0.02);
 
-                // Kiem tra trung entity
                 LivingEntity target = null;
                 for (Entity e : world.getNearbyEntities(cur, 1.2, 1.2, 1.2)) {
-                    if (e instanceof LivingEntity le && !e.equals(player)
-                            && !(le instanceof Player)) {
+                    if (e instanceof LivingEntity le && !e.equals(player) && !(le instanceof Player)) {
                         target = le; break;
                     }
                 }
@@ -304,31 +291,25 @@ public class FlorentinoSkill {
         player.sendActionBar(color("&5✦ &d&lChieu Cuoi! &fLao toi!"));
     }
 
-    // ── Xu ly khi Ultimate trung mob ─────────────────────────────────────────
+    // ── Fix 3: Danh dau tren dau muc tieu GHIM THEO LIÊN TỤC ─────────────────
 
     private void onUltimateHit(Player player, LivingEntity target, PlayerWeaponState state, World world) {
         Location hitLoc = target.getLocation();
 
-        // Teleport player den gan target
         Location land = hitLoc.clone().add(
-            -player.getLocation().getDirection().getX(),
-            0,
-            -player.getLocation().getDirection().getZ());
+            -player.getLocation().getDirection().getX(), 0, -player.getLocation().getDirection().getZ());
         land.setYaw(player.getLocation().getYaw());
         land.setPitch(player.getLocation().getPitch());
         player.teleport(land);
 
-        // Dame
         double ultDamage = getBaseDamage() * 2.0;
         target.damage(ultDamage, player);
 
-        // Spawn 3 hoa xung quanh vi tri trung (giong Skill 1)
         spawnFlowersAt(hitLoc, world, player);
 
-        // ── Danh dau target: glow + bieu tuong kiem tren dau ─────────────────
         target.setGlowing(true);
 
-        // Holo title tren dau dung ArmorStand
+        // Tạo ArmorStand đánh dấu
         ArmorStand marker = (ArmorStand) world.spawnEntity(
             hitLoc.clone().add(0, target.getHeight() + 0.4, 0), EntityType.ARMOR_STAND);
         marker.setCustomName(color("&c⚔ &4Marked"));
@@ -341,16 +322,8 @@ public class FlorentinoSkill {
         UUID targetUUID = target.getUniqueId();
         markedTargets.computeIfAbsent(playerUUID, k -> new HashSet<>()).add(targetUUID);
 
-        // ── Buff ban than: khang choang, hat tung, lam cham, troi chan ────────
-        int buffTicks = ULT_DURATION; // 280 tick = 14s
-        // Dung PotionEffect simulate khang — server framework cua Elysium
-        // co the co API rieng; fallback dung effect que khong mat goc can chu y:
-        // RESISTANCE lv 255 = bat tu thực tế — dung lv 0 de tao ky hieu, logic
-        // chong CC phai duoc xu ly o damage/velocity listener cua ElysiumCore.
-        // Day la flag marker, ElysiumCore doc key nay de skip CC effect.
-        state.addPassiveStack("FLORENTINO_CC_IMMUNE", 1, buffTicks);
+        state.addPassiveStack("FLORENTINO_CC_IMMUNE", 1, ULT_DURATION);
 
-        // Particle + sound khi trung
         world.spawnParticle(Particle.SWEEP_ATTACK, hitLoc.clone().add(0,1,0), 12, 0.5, 0.5, 0.5, 0.05);
         world.spawnParticle(Particle.CHERRY_LEAVES, hitLoc.clone().add(0,1,0), 20, 0.6, 0.6, 0.6, 0.03);
         world.playSound(hitLoc, Sound.ENTITY_ENDER_DRAGON_HURT, 0.7f, 1.6f);
@@ -358,26 +331,36 @@ public class FlorentinoSkill {
 
         player.sendActionBar(color("&5✦ &d&lTrung! &73 hoa roi ra! &c[Marked] &a[Mien CC 14s]"));
 
-        // ── Tu dong xoa sau 14s ───────────────────────────────────────────────
-        Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            // Xoa glow
-            if (target.isValid()) target.setGlowing(false);
-            // Xoa armorstand marker
-            marker.remove();
-            // Xoa khoi danh sach
-            Set<UUID> set = markedTargets.get(playerUUID);
-            if (set != null) set.remove(targetUUID);
-            // Xoa buff CC immune
-            state.clearPassiveStack("FLORENTINO_CC_IMMUNE");
+        // TASK LẶP LẠI: Teleport ArmorStand liên tục theo đầu target khi target di chuyển
+        new BukkitRunnable() {
+            int ticks = 0;
 
-            if (player.isOnline()) {
-                player.sendActionBar(color("&7[Hieu luc chieu cuoi ket thuc]"));
-                player.playSound(player.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 0.5f, 0.8f);
+            @Override
+            public void run() {
+                ticks++;
+                if (ticks >= ULT_DURATION || !target.isValid() || target.isDead() || !player.isOnline()) {
+                    if (marker.isValid()) marker.remove();
+                    if (target.isValid()) target.setGlowing(false);
+
+                    Set<UUID> set = markedTargets.get(playerUUID);
+                    if (set != null) set.remove(targetUUID);
+                    state.clearPassiveStack("FLORENTINO_CC_IMMUNE");
+
+                    if (player.isOnline() && ticks >= ULT_DURATION) {
+                        player.sendActionBar(color("&7[Hieu luc chieu cuoi ket thuc]"));
+                        player.playSound(player.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 0.5f, 0.8f);
+                    }
+                    cancel();
+                    return;
+                }
+
+                // Cập nhật vị trí ghim chặt trên đầu target mỗi tick
+                marker.teleport(target.getLocation().add(0, target.getHeight() + 0.4, 0));
             }
-        }, ULT_DURATION);
+        }.runTaskTimer(plugin, 0L, 1L);
     }
 
-    // ── Helper: Spawn 3 hoa xung quanh 1 vi tri ─────────────────────────────
+    // ── Helper: Spawn 3 hoa xung quanh ───────────────────────────────────────
 
     private void spawnFlowersAt(Location center, World world, Player player) {
         for (int i = 0; i < 3; i++) {
@@ -406,20 +389,14 @@ public class FlorentinoSkill {
         }
     }
 
-    // ── Kiem tra mob co dang bi danh dau boi player khong ───────────────────
-
     public boolean isMarked(Player player, LivingEntity target) {
         Set<UUID> set = markedTargets.get(player.getUniqueId());
         return set != null && set.contains(target.getUniqueId());
     }
 
-    // ── Kiem tra player dang co CC immune ───────────────────────────────────
-
     public boolean hasCCImmune(PlayerWeaponState state) {
         return state.getPassiveStack("FLORENTINO_CC_IMMUNE") > 0;
     }
-
-    // ── Utils ────────────────────────────────────────────────────────────────
 
     private double getBaseDamage() {
         try {
@@ -478,8 +455,6 @@ public class FlorentinoSkill {
         return ab == 0 ? Math.sqrt(apx*apx+apz*apz) : Math.abs(cross)/ab;
     }
 
-    // ── Inner ────────────────────────────────────────────────────────────────
-
     public static class FlowerEntry {
         public final int      entityId;
         public final Location location;
@@ -491,4 +466,5 @@ public class FlorentinoSkill {
             this.expireMs = expireMs;
         }
     }
-}
+    }
+        
