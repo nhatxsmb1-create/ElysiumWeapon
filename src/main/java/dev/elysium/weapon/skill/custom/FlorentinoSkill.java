@@ -241,7 +241,7 @@ public class FlorentinoSkill {
             world.playSound(center, Sound.ENTITY_ENDER_DRAGON_FLAP, 0.6f, 1.8f);
             player.sendActionBar(color("&d✦ &b&lVortex Burst! &fHat tung!"));
         } else {
-            world.playSound(center, Sound.BLOCK_CHERRY_LEAVES_RUSTLE, 0.8f, 1.3f);
+            world.playSound(center, Sound.BLOCK_CHERRY_LEAVES_PLACE, 0.8f, 1.3f);
             player.sendActionBar(color("&d✦ &bVortex! &7[Con " + remaining + " don]"));
         }
         return true;
