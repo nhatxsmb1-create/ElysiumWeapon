@@ -181,7 +181,7 @@ public class FlorentinoSkill {
         pickupFlower(player, target, flower, state);
     }
 
-    // ── Nhặt hoa: Fix dùng player.getMaxHealth() ─────────────────────────────
+    // ── Nhặt hoa: Trừ thẳng 1.5s hồi chiêu C1 ────────────────────────────────
 
     private void pickupFlower(Player player, LivingEntity target, FlowerEntry entry, PlayerWeaponState state) {
         removeFlowerById(player.getWorld(), entry.entityId);
@@ -191,7 +191,7 @@ public class FlorentinoSkill {
         state.clearPassiveStack(VORTEX_KEY);
         state.addPassiveStack(VORTEX_KEY, 3, 200);
 
-        // ĐÃ FIX: Dùng player.getMaxHealth() trực tiếp
+        // Hồi máu
         double maxHp = player.getMaxHealth();
         double healAmount = maxHp * 0.08;
 
@@ -204,11 +204,18 @@ public class FlorentinoSkill {
         // Tăng tốc chạy Speed II trong 1.2s
         player.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 25, 1, false, false, false));
 
-        player.sendActionBar(color("&d✦ &fNhặt hoa! &a+" + (int)healAmount + " HP &6[Bước Hoa]"));
+        // MỚI FIX: Trừ 1.5s hồi chiêu Chiêu 1 ngay khi nhặt hoa
+        if (state.isOnCooldown(SKILL1_CD)) {
+            double remaining = state.getCooldownRemaining(SKILL1_CD);
+            int newCd = (int) Math.max(0, Math.round(remaining - 1.5));
+            state.setCooldown(SKILL1_CD, newCd);
+        }
+
+        player.sendActionBar(color("&d✦ &fNhặt hoa! &a+" + (int)healAmount + " HP &b[-1.5s C1]"));
         player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 0.6f, 1.6f);
     }
 
-    // ── Chiêu 2 (Thưởng Kiếm): Fix ép kiểu long sang int ở dòng 253 ─────────
+    // ── Chiêu 2 (Thưởng Kiếm) ──────────────────────────────────────────────────
 
     public boolean onHitDuringVortex(Player player, LivingEntity target, PlayerWeaponState state) {
         int stacks = state.getPassiveStack(VORTEX_KEY);
@@ -241,16 +248,10 @@ public class FlorentinoSkill {
 
         } else {
             dealSkillDamage(target, player, baseDmg * 1.5);
-            
-            // ĐÃ FIX (Dòng 253): Ép kiểu (int) an toàn
-            if (state.isOnCooldown(SKILL1_CD)) {
-                long rem = (long) state.getCooldownRemaining(SKILL1_CD);
-                state.setCooldown(SKILL1_CD, (int) Math.max(0L, rem - 1L));
-            }
 
             world.spawnParticle(Particle.CRIT, target.getLocation().add(0, 1, 0), 10, 0.2, 0.4, 0.2, 0.05);
             world.playSound(center, Sound.BLOCK_ANVIL_LAND, 0.5f, 1.6f);
-            player.sendActionBar(color("&d✦ &c&lThưởng Kiếm 3 &a[-1.5s CD Chiêu 1]"));
+            player.sendActionBar(color("&d✦ &c&lThưởng Kiếm 3"));
             vortexHitCounters.put(playerUUID, 0);
         }
 
