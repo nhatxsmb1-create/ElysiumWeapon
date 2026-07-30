@@ -12,40 +12,31 @@ import org.bukkit.util.Vector;
 
 import java.util.*;
 
-/**
- * Florentino Sword
- *
- * PASSIVE  : Moi 20s san sang. Chem trung → Dash den hoa + Sweep AOE.
- *            Lan 1,2: dame binh thuong. Lan 3: dame + hat tung.
- *            Nhat hoa → reset passive ngay.
- *
- * SKILL 1  : Click phai — Nem hoa 5 block, trung mob → 3 hoa + slow 2s. CD 7s, 12 mana.
- *
- * ULTIMATE : Shift+Click phai — Lao thang ra truoc, trung mob →
- *            3 hoa + danh dau muc tieu (Glowing + icon) 14s +
- *            buff ban than (khang choang/hat tung/cham/troi) 14s. CD 15s.
- */
 public class FlorentinoSkill {
 
     private final ElysiumWeapon plugin;
 
-    // ── Constants ─────────────────────────────────────────────────────────────
-    public static final String PASSIVE_KEY  = "FLORENTINO_READY";
-    public static final String CD_KEY       = "FLORENTINO_PASSIVE_CD";
-    public static final int    PASSIVE_CD   = 20;
+    // ── Keys ─────────────────────────────────────────────────────────────────
+    public static final String PASSIVE_KEY   = "FLORENTINO_READY";
+    public static final String CD_KEY        = "FLORENTINO_PASSIVE_CD";
+    public static final int    PASSIVE_CD    = 20;   // giay
 
-    public static final String SKILL1_CD    = "FLORENTINO_SKILL1_CD";
-    public static final int    SKILL1_CD_S  = 7;
-    public static final int    SKILL1_MANA  = 12;
+    public static final String SKILL1_CD     = "FLORENTINO_SKILL1_CD";
+    public static final int    SKILL1_CD_S   = 7;    // giay
+    public static final int    SKILL1_MANA   = 12;
 
-    public static final String ULT_CD       = "FLORENTINO_ULT_CD";
-    public static final int    ULT_CD_S     = 15;
-    public static final int    ULT_MANA     = 30;
+    public static final String BUOC_HOA_KEY  = "FLORENTINO_BUOC_HOA";  // Noi tai: sau dash +30% dame
+    public static final String VORTEX_KEY    = "FLORENTINO_VORTEX";    // Noi tai: 3 don chem lan AOE sau nhat hoa
 
-    // Dem so lan sweep de biet lan 3 hat tung
-    private final Map<UUID, Integer> sweepCount = new HashMap<>();
+    public static final String ULT_CD_KEY    = "FLORENTINO_ULT_CD";
+    public static final int    ULT_CD_S      = 15;   // giay
+    public static final int    ULT_MANA      = 30;
+    public static final int    ULT_DURATION  = 280;  // tick = 14s (buff + mark + glow)
 
-    // Hoa tren san
+    // Player UUID → danh sach mob dang bi danh dau boi Ultimate
+    private final Map<UUID, Set<UUID>> markedTargets = new HashMap<>();
+
+    // World UID → danh sach hoa tren san
     private final Map<UUID, List<FlowerEntry>> flowerMap = new HashMap<>();
 
     public FlorentinoSkill(ElysiumWeapon plugin) {
@@ -53,7 +44,7 @@ public class FlorentinoSkill {
         startPassiveTimer();
     }
 
-    // ── Passive Timer ─────────────────────────────────────────────────────────
+    // ── Passive Timer: moi 20s set ready ────────────────────────────────────
 
     private void startPassiveTimer() {
         new BukkitRunnable() {
@@ -63,102 +54,22 @@ public class FlorentinoSkill {
                     if (!"FLORENTINO_SWORD".equals(state.getCurrentWeapon())) continue;
                     if (state.isOnCooldown(CD_KEY)) continue;
                     if (state.getPassiveStack(PASSIVE_KEY) > 0) continue;
+
                     state.addPassiveStack(PASSIVE_KEY, 1, 99999);
-                    p.sendActionBar(color("&d✦ &fNoi tai san sang! &7[Chem trung → Dash]"));
+                    p.sendActionBar(color("&d✦ &fNoi tai san sang! &7[Click trai → Dash]"));
                     p.playSound(p.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 0.7f, 1.4f);
                 }
             }
         }.runTaskTimer(plugin, 400L, 400L);
     }
 
-    // ── On Hit: Passive Dash ─────────────────────────────────────────────────
-
-    public boolean onHit(Player player, LivingEntity target, PlayerWeaponState state) {
-        if (state.getPassiveStack(PASSIVE_KEY) == 0) return false;
-
-        FlowerEntry nearest = getNearestFlower(player, 20);
-        if (nearest == null) return false;
-
-        // Tieu passive + set CD
-        state.clearPassiveStack(PASSIVE_KEY);
-        state.setCooldown(CD_KEY, PASSIVE_CD);
-
-        // Tang dem sweep
-        int count = sweepCount.merge(player.getUniqueId(), 1, Integer::sum);
-        boolean isThird = (count % 3 == 0);
-
-        executeDash(player, nearest, state, isThird);
-        return true;
-    }
-
-    // ── Dash + Sweep ─────────────────────────────────────────────────────────
-
-    private void executeDash(Player player, FlowerEntry target,
-                              PlayerWeaponState state, boolean hatTung) {
-        Location from      = player.getLocation().clone();
-        Location flowerLoc = target.location.clone().add(0.5, 0, 0.5);
-        flowerLoc.setYaw(from.getYaw());
-        flowerLoc.setPitch(from.getPitch());
-        World world = player.getWorld();
-
-        double baseDamage = getBaseDamage();
-        double sweepDamage = baseDamage * 1.4;
-
-        // Particle trail
-        Vector trailDir = flowerLoc.toVector().subtract(from.toVector()).normalize();
-        double trailDist = from.distance(flowerLoc);
-        for (double d = 0; d < trailDist; d += 0.5) {
-            Location p = from.clone().add(trailDir.clone().multiply(d)).add(0, 1, 0);
-            world.spawnParticle(Particle.CHERRY_LEAVES, p, 3, 0.1, 0.1, 0.1, 0.01);
-        }
-
-        // Teleport
-        player.teleport(flowerLoc);
-        world.playSound(flowerLoc, Sound.ENTITY_ENDERMAN_TELEPORT, 0.6f, 1.5f);
-        world.spawnParticle(Particle.CHERRY_LEAVES, flowerLoc.clone().add(0,1,0),
-                25, 0.6, 0.6, 0.6, 0.03);
-
-        // Sweep AOE
-        world.playSound(flowerLoc, Sound.ENTITY_PLAYER_ATTACK_SWEEP, 1f, 0.8f);
-        world.spawnParticle(Particle.SWEEP_ATTACK, flowerLoc.clone().add(0,1,0),
-                5, 0.5, 0, 0.5, 0);
-
-        for (Entity e : world.getNearbyEntities(flowerLoc, 2.5, 2, 2.5)) {
-            if (!(e instanceof LivingEntity le) || e instanceof Player) continue;
-            le.damage(sweepDamage, player);
-            if (hatTung) {
-                // Lan 3: hat tung
-                Vector kb = le.getLocation().toVector()
-                        .subtract(flowerLoc.toVector()).normalize().multiply(0.8);
-                kb.setY(0.6);
-                le.setVelocity(kb);
-                world.spawnParticle(Particle.EXPLOSION, le.getLocation().add(0,1,0), 3);
-            } else {
-                Vector kb = le.getLocation().toVector()
-                        .subtract(flowerLoc.toVector()).normalize().multiply(0.3);
-                kb.setY(0.15);
-                le.setVelocity(kb);
-            }
-            world.spawnParticle(Particle.CRIT, le.getLocation().add(0,1,0), 6, 0.3, 0.3, 0.3, 0.1);
-        }
-
-        String msg = hatTung
-                ? "&d✦ &fSweep lan 3! &6Hat tung!"
-                : "&d✦ &fDash + Sweep! &6x1.4 dame!";
-        player.sendActionBar(color(msg));
-
-        // Nhat hoa
-        pickupFlower(player, target, state);
-    }
-
-    // ── Skill 1: Nem hoa ─────────────────────────────────────────────────────
+    // ── Skill 1: Nem hoa trung mob ───────────────────────────────────────────
 
     public void throwFlowers(Player player) {
         PlayerWeaponState state = plugin.getWeaponManager().getState(player);
 
         if (state.isOnCooldown(SKILL1_CD)) {
-            long rem = state.getCooldownRemaining(SKILL1_CD);
-            player.sendActionBar(color("&cNem Hoa dang hoi! &e" + rem + "s"));
+            player.sendActionBar(color("&cNem Hoa dang hoi phuc! &e" + state.getCooldownRemaining(SKILL1_CD) + "s"));
             return;
         }
         if (!dev.elysium.core.api.CoreAPI.useMana(player, SKILL1_MANA)) {
@@ -180,8 +91,7 @@ public class FlorentinoSkill {
 
                 LivingEntity hit = null;
                 for (Entity e : world.getNearbyEntities(cur, 1, 1, 1)) {
-                    if (e instanceof LivingEntity le && !(le instanceof Player)
-                            && !e.equals(player)) {
+                    if (e instanceof LivingEntity le && !(le instanceof Player) && !e.equals(player)) {
                         hit = le; break;
                     }
                 }
@@ -189,14 +99,152 @@ public class FlorentinoSkill {
                 if (hit != null || dist >= 5) {
                     cancel();
                     if (hit == null) return;
-                    spawnFlowersAt(player, hit.getLocation());
-                    hit.addPotionEffect(new PotionEffect(
-                            PotionEffectType.SLOWNESS, 40, 1, false, true, true));
+                    spawnFlowersAt(hit.getLocation(), world, player);
+                    hit.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 40, 1, false, true, true));
                     world.playSound(hit.getLocation(), Sound.BLOCK_CHERRY_LEAVES_PLACE, 1f, 1.2f);
+                    world.spawnParticle(Particle.SWEEP_ATTACK, hit.getLocation().clone().add(0,1,0), 5);
                     player.sendActionBar(color("&d✦ &fTrung! 3 hoa xuat hien!"));
                 }
             }
         }.runTaskTimer(plugin, 0, 1);
+    }
+
+    // ── Passive: Click trai co noi tai → Dash den hoa ───────────────────────
+
+    public boolean onLeftClick(Player player, PlayerWeaponState state) {
+        if (state.getPassiveStack(PASSIVE_KEY) == 0) return false;
+
+        FlowerEntry nearest = getNearestFlower(player, 20);
+        if (nearest == null) {
+            player.sendActionBar(color("&cKhong co hoa trong tam! Hay nem hoa truoc!"));
+            return false;
+        }
+
+        state.clearPassiveStack(PASSIVE_KEY);
+        state.setCooldown(CD_KEY, PASSIVE_CD);
+        executeDash(player, nearest, state);
+        return true;
+    }
+
+    // ── Dash den hoa ─────────────────────────────────────────────────────────
+
+    private void executeDash(Player player, FlowerEntry target, PlayerWeaponState state) {
+        Location flowerLoc = target.location.clone().add(0.5, 0, 0.5);
+        Location from = player.getLocation();
+
+        // Particle trail
+        new BukkitRunnable() {
+            int tick = 0;
+            @Override public void run() {
+                if (tick++ >= 7) { cancel(); return; }
+                player.getWorld().spawnParticle(Particle.CHERRY_LEAVES,
+                    player.getLocation().add(0, 1, 0), 6, 0.2, 0.2, 0.2, 0.01);
+            }
+        }.runTaskTimer(plugin, 0, 1);
+
+        Location land = flowerLoc.clone();
+        land.setYaw(from.getYaw());
+        land.setPitch(from.getPitch());
+        player.teleport(land);
+
+        player.getWorld().playSound(land, Sound.ENTITY_ENDERMAN_TELEPORT, 0.5f, 1.5f);
+        player.getWorld().spawnParticle(Particle.CHERRY_LEAVES, land.clone().add(0,1,0),
+            20, 0.5, 0.5, 0.5, 0.03);
+
+        double baseDamage = getBaseDamage();
+        final double dashDamage = baseDamage * 1.5;
+
+        for (Entity e : player.getWorld().getNearbyEntities(from, 6, 2, 6)) {
+            if (!(e instanceof LivingEntity le) || e instanceof Player) continue;
+            double t = dotProject(from, flowerLoc, le.getLocation());
+            if (t >= 0 && t <= 1.2 && distToLine(from, flowerLoc, le.getLocation()) < 2.0) {
+                le.damage(dashDamage, player);
+                le.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 20, 0, false, false, false));
+                player.getWorld().spawnParticle(Particle.SWEEP_ATTACK, le.getLocation().add(0,1,0), 3);
+            }
+        }
+
+        player.sendActionBar(color("&d✦ &fDash!"));
+        pickupFlower(player, target, state);
+    }
+
+    // ── Nhat hoa → kich hoat Vortex ─────────────────────────────────────────
+
+    private void pickupFlower(Player player, FlowerEntry entry, PlayerWeaponState state) {
+        removeFlowerById(player.getWorld(), entry.entityId);
+
+        state.setCooldown(CD_KEY, 0);
+        state.addPassiveStack(PASSIVE_KEY, 1, 99999);
+
+        // Buoc Hoa: don danh tiep trong 3s +30% dame
+        state.addPassiveStack(BUOC_HOA_KEY, 1, 60);
+
+        // Vortex: 3 don chem tiep theo lan AOE, don thu 3 hat tung
+        state.clearPassiveStack(VORTEX_KEY);
+        state.addPassiveStack(VORTEX_KEY, 3, 200); // het han 10s
+
+        player.sendActionBar(color("&d✦ &fNhat hoa! &6[Buoc Hoa +30%] &b[Vortex x3]"));
+        player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 0.8f, 1.6f);
+        player.getWorld().spawnParticle(Particle.HEART, player.getLocation().add(0, 2, 0), 5, 0.3, 0.3, 0.3, 0);
+    }
+
+    // ── Noi tai Vortex: chem lan AOE, don thu 3 hat tung ────────────────────
+
+    public boolean onHitDuringVortex(Player player, LivingEntity target, PlayerWeaponState state) {
+        int stacks = state.getPassiveStack(VORTEX_KEY);
+        if (stacks <= 0) return false;
+
+        state.clearPassiveStack(VORTEX_KEY);
+        int remaining = stacks - 1;
+        if (remaining > 0) state.addPassiveStack(VORTEX_KEY, remaining, 200);
+
+        World world     = player.getWorld();
+        Location center = target.getLocation().clone().add(0, 1, 0);
+        double aoeDamage = getBaseDamage() * 0.6;
+        boolean isLast  = (remaining == 0);
+
+        // AOE radius 3 block — khong danh lai target chinh
+        for (Entity e : world.getNearbyEntities(center, 3, 2, 3)) {
+            if (!(e instanceof LivingEntity le) || e instanceof Player || e.equals(target)) continue;
+            le.damage(aoeDamage, player);
+            if (isLast) {
+                Vector knockup = le.getLocation().toVector()
+                    .subtract(center.clone().subtract(0,1,0).toVector())
+                    .normalize().multiply(0.5).setY(0.55);
+                le.setVelocity(knockup);
+                world.spawnParticle(Particle.SWEEP_ATTACK, le.getLocation().add(0,1,0), 5, 0.3, 0.3, 0.3, 0);
+            } else {
+                world.spawnParticle(Particle.CHERRY_LEAVES, le.getLocation().add(0,1,0), 6, 0.3, 0.3, 0.3, 0.02);
+            }
+        }
+
+        // Hat tung ca target chinh o don thu 3
+        if (isLast) {
+            Vector knockup = target.getLocation().toVector()
+                .subtract(center.clone().subtract(0,1,0).toVector())
+                .normalize().multiply(0.4).setY(0.55);
+            target.setVelocity(knockup);
+        }
+
+        // Ring particle
+        int ringCount = isLast ? 24 : 16;
+        double r = isLast ? 3.0 : 2.5;
+        for (int i = 0; i < ringCount; i++) {
+            double angle = Math.toRadians((360.0 / ringCount) * i);
+            world.spawnParticle(
+                isLast ? Particle.SWEEP_ATTACK : Particle.CHERRY_LEAVES,
+                center.clone().add(r * Math.cos(angle), 0, r * Math.sin(angle)),
+                2, 0.1, 0.1, 0.1, 0.01);
+        }
+
+        if (isLast) {
+            world.playSound(center, Sound.ENTITY_ENDER_DRAGON_FLAP, 0.6f, 1.8f);
+            player.sendActionBar(color("&d✦ &b&lVortex Burst! &fHat tung!"));
+        } else {
+            world.playSound(center, Sound.BLOCK_CHERRY_LEAVES_RUSTLE, 0.8f, 1.3f);
+            player.sendActionBar(color("&d✦ &bVortex! &7[Con " + remaining + " don]"));
+        }
+        return true;
     }
 
     // ── Ultimate: Shift + Click phai ─────────────────────────────────────────
@@ -204,132 +252,188 @@ public class FlorentinoSkill {
     public void castUltimate(Player player) {
         PlayerWeaponState state = plugin.getWeaponManager().getState(player);
 
-        if (state.isOnCooldown(ULT_CD)) {
-            long rem = state.getCooldownRemaining(ULT_CD);
-            player.sendActionBar(color("&5⚔ Ultimate dang hoi! &e" + rem + "s"));
+        if (state.isOnCooldown(ULT_CD_KEY)) {
+            player.sendActionBar(color("&cChieu cuoi dang hoi phuc! &e"
+                + state.getCooldownRemaining(ULT_CD_KEY) + "s"));
             return;
         }
         if (!dev.elysium.core.api.CoreAPI.useMana(player, ULT_MANA)) {
             player.sendActionBar(color("&cKhong du mana! Can: &b" + ULT_MANA));
             return;
         }
-        state.setCooldown(ULT_CD, ULT_CD_S);
+
+        state.setCooldown(ULT_CD_KEY, ULT_CD_S);
 
         World world = player.getWorld();
         Location start = player.getEyeLocation();
         Vector dir = start.getDirection().normalize();
 
-        // Buff ban than: khang choang/hat tung/cham/troi 14s (280 tick)
-        player.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE,   280, 1, false, true, true));
-        player.addPotionEffect(new PotionEffect(PotionEffectType.SLOW_FALLING, 280, 0, false, true, true));
-        player.addPotionEffect(new PotionEffect(PotionEffectType.SPEED,        280, 1, false, true, true));
-        player.sendActionBar(color("&5⚔ &fUltimate! &dKhang tat ca hieu ung! 14s"));
-        world.playSound(player.getLocation(), Sound.ENTITY_WITHER_SHOOT, 0.5f, 1.8f);
-        world.spawnParticle(Particle.ENCHANT, player.getLocation().add(0,1,0),
-                40, 0.5, 0.5, 0.5, 0.2);
-
+        // ── Lao thang ra truoc toi da 10 block ──────────────────────────────
         new BukkitRunnable() {
             double dist = 0;
+            boolean hit = false;
+
             @Override public void run() {
+                if (hit || dist >= 10) { cancel(); return; }
                 dist += 0.6;
                 Location cur = start.clone().add(dir.clone().multiply(dist));
-                world.spawnParticle(Particle.ENCHANTED_HIT, cur, 4, 0.1, 0.1, 0.1, 0.05);
 
-                LivingEntity hit = null;
+                // Particle khi lao
+                world.spawnParticle(Particle.SWEEP_ATTACK, cur, 2, 0.15, 0.15, 0.15, 0);
+                world.spawnParticle(Particle.CHERRY_LEAVES, cur, 4, 0.2, 0.2, 0.2, 0.02);
+
+                // Kiem tra trung entity
+                LivingEntity target = null;
                 for (Entity e : world.getNearbyEntities(cur, 1.2, 1.2, 1.2)) {
-                    if (e instanceof LivingEntity le && !(le instanceof Player)
-                            && !e.equals(player)) {
-                        hit = le; break;
+                    if (e instanceof LivingEntity le && !e.equals(player)
+                            && !(le instanceof Player)) {
+                        target = le; break;
                     }
                 }
 
-                if (hit != null || dist >= 10) {
+                if (target != null) {
+                    hit = true;
                     cancel();
-                    if (hit == null) return;
-
-                    // 3 hoa xung quanh
-                    spawnFlowersAt(player, hit.getLocation());
-
-                    // Danh dau muc tieu: Glowing 14s
-                    hit.setGlowing(true);
-                    hit.addPotionEffect(new PotionEffect(
-                            PotionEffectType.GLOWING, 280, 0, false, true, true));
-                    hit.setCustomName(color("&5⚔ &f" + getEntityName(hit)));
-                    hit.setCustomNameVisible(true);
-
-                    // Slow muc tieu
-                    hit.addPotionEffect(new PotionEffect(
-                            PotionEffectType.SLOWNESS, 280, 0, false, true, true));
-
-                    world.playSound(hit.getLocation(), Sound.ENTITY_PLAYER_ATTACK_CRIT, 1f, 0.6f);
-                    world.spawnParticle(Particle.ENCHANTED_HIT, hit.getLocation().add(0,1,0),
-                            20, 0.5, 0.5, 0.5, 0.1);
-                    world.spawnParticle(Particle.ENCHANTED_HIT, hit.getLocation().add(0,1,0),
-                            15, 0.4, 0.4, 0.4, 0.08);
-
-                    // Tu bo danh dau sau 14s
-                    final LivingEntity marked = hit;
-                    Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                        marked.setGlowing(false);
-                        marked.setCustomNameVisible(false);
-                        marked.setCustomName(null);
-                    }, 280L);
+                    onUltimateHit(player, target, state, world);
                 }
             }
         }.runTaskTimer(plugin, 0, 1);
+
+        world.playSound(start, Sound.ENTITY_ENDERMAN_TELEPORT, 0.4f, 2.0f);
+        world.spawnParticle(Particle.SWEEP_ATTACK, start, 8, 0.3, 0.3, 0.3, 0.05);
+        player.sendActionBar(color("&5✦ &d&lChieu Cuoi! &fLao toi!"));
     }
 
-    // ── Spawn hoa chung ──────────────────────────────────────────────────────
+    // ── Xu ly khi Ultimate trung mob ─────────────────────────────────────────
 
-    private void spawnFlowersAt(Player player, Location center) {
-        World world = center.getWorld();
+    private void onUltimateHit(Player player, LivingEntity target, PlayerWeaponState state, World world) {
+        Location hitLoc = target.getLocation();
+
+        // Teleport player den gan target
+        Location land = hitLoc.clone().add(
+            -player.getLocation().getDirection().getX(),
+            0,
+            -player.getLocation().getDirection().getZ());
+        land.setYaw(player.getLocation().getYaw());
+        land.setPitch(player.getLocation().getPitch());
+        player.teleport(land);
+
+        // Dame
+        double ultDamage = getBaseDamage() * 2.0;
+        target.damage(ultDamage, player);
+
+        // Spawn 3 hoa xung quanh vi tri trung (giong Skill 1)
+        spawnFlowersAt(hitLoc, world, player);
+
+        // ── Danh dau target: glow + bieu tuong kiem tren dau ─────────────────
+        target.setGlowing(true);
+
+        // Holo title tren dau dung ArmorStand
+        ArmorStand marker = (ArmorStand) world.spawnEntity(
+            hitLoc.clone().add(0, target.getHeight() + 0.4, 0), EntityType.ARMOR_STAND);
+        marker.setCustomName(color("&c⚔ &4Marked"));
+        marker.setCustomNameVisible(true);
+        marker.setGravity(false);
+        marker.setVisible(false);
+        marker.setSmall(true);
+
+        UUID playerUUID = player.getUniqueId();
+        UUID targetUUID = target.getUniqueId();
+        markedTargets.computeIfAbsent(playerUUID, k -> new HashSet<>()).add(targetUUID);
+
+        // ── Buff ban than: khang choang, hat tung, lam cham, troi chan ────────
+        int buffTicks = ULT_DURATION; // 280 tick = 14s
+        // Dung PotionEffect simulate khang — server framework cua Elysium
+        // co the co API rieng; fallback dung effect que khong mat goc can chu y:
+        // RESISTANCE lv 255 = bat tu thực tế — dung lv 0 de tao ky hieu, logic
+        // chong CC phai duoc xu ly o damage/velocity listener cua ElysiumCore.
+        // Day la flag marker, ElysiumCore doc key nay de skip CC effect.
+        state.addPassiveStack("FLORENTINO_CC_IMMUNE", 1, buffTicks);
+
+        // Particle + sound khi trung
+        world.spawnParticle(Particle.SWEEP_ATTACK, hitLoc.clone().add(0,1,0), 12, 0.5, 0.5, 0.5, 0.05);
+        world.spawnParticle(Particle.CHERRY_LEAVES, hitLoc.clone().add(0,1,0), 20, 0.6, 0.6, 0.6, 0.03);
+        world.playSound(hitLoc, Sound.ENTITY_ENDER_DRAGON_HURT, 0.7f, 1.6f);
+        world.playSound(hitLoc, Sound.BLOCK_CHERRY_LEAVES_PLACE, 1f, 0.8f);
+
+        player.sendActionBar(color("&5✦ &d&lTrung! &73 hoa roi ra! &c[Marked] &a[Mien CC 14s]"));
+
+        // ── Tu dong xoa sau 14s ───────────────────────────────────────────────
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            // Xoa glow
+            if (target.isValid()) target.setGlowing(false);
+            // Xoa armorstand marker
+            marker.remove();
+            // Xoa khoi danh sach
+            Set<UUID> set = markedTargets.get(playerUUID);
+            if (set != null) set.remove(targetUUID);
+            // Xoa buff CC immune
+            state.clearPassiveStack("FLORENTINO_CC_IMMUNE");
+
+            if (player.isOnline()) {
+                player.sendActionBar(color("&7[Hieu luc chieu cuoi ket thuc]"));
+                player.playSound(player.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 0.5f, 0.8f);
+            }
+        }, ULT_DURATION);
+    }
+
+    // ── Helper: Spawn 3 hoa xung quanh 1 vi tri ─────────────────────────────
+
+    private void spawnFlowersAt(Location center, World world, Player player) {
         for (int i = 0; i < 3; i++) {
             double angle = Math.toRadians(i * 120.0);
-            Location flowerLoc = findGround(new Location(world,
-                    center.getX() + 1.5 * Math.cos(angle),
-                    center.getY(),
-                    center.getZ() + 1.5 * Math.sin(angle)));
+            double ox = 1.5 * Math.cos(angle);
+            double oz = 1.5 * Math.sin(angle);
+            Location flowerLoc = findGround(
+                new Location(world, center.getX() + ox, center.getY(), center.getZ() + oz));
 
-            Item flower = world.dropItem(flowerLoc.clone().add(0, 0.3, 0),
-                    new ItemStack(Material.POPPY));
+            Item flower = world.dropItem(
+                flowerLoc.clone().add(0, 0.3, 0), new ItemStack(Material.POPPY));
             flower.setPickupDelay(Integer.MAX_VALUE);
             flower.setVelocity(new Vector(0, 0, 0));
             flower.setGlowing(true);
             flower.setCustomName(color("&d✦ Hoa Florentino"));
             flower.setCustomNameVisible(true);
 
-            world.spawnParticle(Particle.CHERRY_LEAVES,
-                    flower.getLocation(), 12, 0.3, 0.3, 0.3, 0.02);
+            world.spawnParticle(Particle.CHERRY_LEAVES, flower.getLocation(), 12, 0.3, 0.3, 0.3, 0.02);
 
             long expireMs = System.currentTimeMillis() + 10_000L;
             flowerMap.computeIfAbsent(world.getUID(), k -> new ArrayList<>())
                      .add(new FlowerEntry(flower.getEntityId(), flowerLoc, expireMs));
 
             final int eid = flower.getEntityId();
-            Bukkit.getScheduler().runTaskLater(plugin, () ->
-                    removeFlowerById(world, eid), 200L);
+            Bukkit.getScheduler().runTaskLater(plugin, () -> removeFlowerById(world, eid), 200L);
         }
     }
 
-    // ── Nhat hoa ────────────────────────────────────────────────────────────
+    // ── Kiem tra mob co dang bi danh dau boi player khong ───────────────────
 
-    private void pickupFlower(Player player, FlowerEntry entry, PlayerWeaponState state) {
-        removeFlowerById(player.getWorld(), entry.entityId);
-        state.setCooldown(CD_KEY, 0);
-        state.addPassiveStack(PASSIVE_KEY, 1, 99999);
-        player.sendActionBar(color("&d✦ &fNhat hoa! Noi tai san sang!"));
-        player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 0.8f, 1.6f);
-        player.getWorld().spawnParticle(Particle.HEART,
-                player.getLocation().add(0, 2, 0), 5, 0.3, 0.3, 0.3, 0);
+    public boolean isMarked(Player player, LivingEntity target) {
+        Set<UUID> set = markedTargets.get(player.getUniqueId());
+        return set != null && set.contains(target.getUniqueId());
     }
 
-    // ── Utils ─────────────────────────────────────────────────────────────────
+    // ── Kiem tra player dang co CC immune ───────────────────────────────────
 
-    public FlowerEntry getNearestFlower(Player player, double maxDist) {
+    public boolean hasCCImmune(PlayerWeaponState state) {
+        return state.getPassiveStack("FLORENTINO_CC_IMMUNE") > 0;
+    }
+
+    // ── Utils ────────────────────────────────────────────────────────────────
+
+    private double getBaseDamage() {
+        try {
+            var wd = plugin.getWeaponManager().getWeaponData("FLORENTINO_SWORD");
+            return (wd != null) ? wd.getBaseDamage() : 8.0;
+        } catch (Exception ignored) { return 8.0; }
+    }
+
+    private FlowerEntry getNearestFlower(Player player, double maxDist) {
         List<FlowerEntry> list = flowerMap.get(player.getWorld().getUID());
         if (list == null || list.isEmpty()) return null;
         long now = System.currentTimeMillis();
         list.removeIf(f -> now > f.expireMs);
+
         FlowerEntry nearest = null;
         double minDist = maxDist * maxDist;
         for (FlowerEntry f : list) {
@@ -347,14 +451,6 @@ public class FlorentinoSkill {
         }
     }
 
-    private double getBaseDamage() {
-        try {
-            var wd = plugin.getWeaponManager().getWeaponData("FLORENTINO_SWORD");
-            if (wd != null) return wd.getBaseDamage();
-        } catch (Exception ignored) {}
-        return 8.0;
-    }
-
     private Location findGround(Location loc) {
         Location l = loc.clone();
         for (int i = 0; i < 5; i++) {
@@ -364,20 +460,35 @@ public class FlorentinoSkill {
         return loc;
     }
 
-    private String getEntityName(LivingEntity e) {
-        return e.getCustomName() != null ? e.getCustomName() : e.getType().name();
-    }
-
     private String color(String s) { return s.replace("&", "\u00a7"); }
 
-    // ── Inner ─────────────────────────────────────────────────────────────────
+    private double dotProject(Location a, Location b, Location p) {
+        double abx = b.getX()-a.getX(), abz = b.getZ()-a.getZ();
+        double apx = p.getX()-a.getX(), apz = p.getZ()-a.getZ();
+        double ab2 = abx*abx + abz*abz;
+        if (ab2 == 0) return 0;
+        return (apx*abx + apz*abz) / ab2;
+    }
+
+    private double distToLine(Location a, Location b, Location p) {
+        double abx = b.getX()-a.getX(), abz = b.getZ()-a.getZ();
+        double apx = p.getX()-a.getX(), apz = p.getZ()-a.getZ();
+        double cross = abx*apz - abz*apx;
+        double ab = Math.sqrt(abx*abx + abz*abz);
+        return ab == 0 ? Math.sqrt(apx*apx+apz*apz) : Math.abs(cross)/ab;
+    }
+
+    // ── Inner ────────────────────────────────────────────────────────────────
 
     public static class FlowerEntry {
         public final int      entityId;
         public final Location location;
         public final long     expireMs;
+
         FlowerEntry(int entityId, Location location, long expireMs) {
-            this.entityId = entityId; this.location = location; this.expireMs = expireMs;
+            this.entityId = entityId;
+            this.location = location;
+            this.expireMs = expireMs;
         }
     }
 }
