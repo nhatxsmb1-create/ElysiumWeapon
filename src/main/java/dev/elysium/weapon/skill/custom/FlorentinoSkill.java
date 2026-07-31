@@ -23,14 +23,12 @@ public class FlorentinoSkill {
 
     public static final String SKILL1_CD     = "FLORENTINO_SKILL1_CD";
     public static final int    SKILL1_CD_S   = 7;    // giay
-    public static final int    SKILL1_MANA   = 12;
 
     public static final String BUOC_HOA_KEY  = "FLORENTINO_BUOC_HOA";
     public static final String VORTEX_KEY    = "FLORENTINO_VORTEX";
 
     public static final String ULT_CD_KEY    = "FLORENTINO_ULT_CD";
     public static final int    ULT_CD_S      = 15;   // giay
-    public static final int    ULT_MANA      = 30;
     public static final int    ULT_DURATION  = 280;  // tick = 14s
 
     // Cooldown lướt hoa (250ms)
@@ -84,7 +82,7 @@ public class FlorentinoSkill {
         }.runTaskTimer(plugin, 400L, 400L);
     }
 
-    // ── Skill 1: Ném hoa ─────────────────────────────────────────────────────
+    // ── Skill 1: Ném hoa (Đã xoá Mana) ──────────────────────────────────────
 
     public void throwFlowers(Player player) {
         PlayerWeaponState state = plugin.getWeaponManager().getState(player);
@@ -93,10 +91,7 @@ public class FlorentinoSkill {
             player.sendActionBar(color("&cNém Hoa đang hồi! &e" + state.getCooldownRemaining(SKILL1_CD) + "s"));
             return;
         }
-        if (!dev.elysium.core.api.CoreAPI.useMana(player, SKILL1_MANA)) {
-            player.sendActionBar(color("&cKhông đủ mana!"));
-            return;
-        }
+
         state.setCooldown(SKILL1_CD, SKILL1_CD_S);
 
         World world = player.getWorld();
@@ -204,7 +199,7 @@ public class FlorentinoSkill {
         // Tăng tốc chạy Speed II trong 1.2s
         player.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 25, 1, false, false, false));
 
-        // MỚI FIX: Trừ 1.5s hồi chiêu Chiêu 1 ngay khi nhặt hoa
+        // Trừ 1.5s hồi chiêu Chiêu 1 ngay khi nhặt hoa
         if (state.isOnCooldown(SKILL1_CD)) {
             double remaining = state.getCooldownRemaining(SKILL1_CD);
             int newCd = (int) Math.max(0, Math.round(remaining - 1.5));
@@ -265,17 +260,13 @@ public class FlorentinoSkill {
         return true;
     }
 
-    // ── Ultimate (Tài Hoa) ────────────────────────────────────────────────────
+    // ── Ultimate: Tài Hoa (Đã xoá Mana) ──────────────────────────────────────
 
     public void castUltimate(Player player) {
         PlayerWeaponState state = plugin.getWeaponManager().getState(player);
 
         if (state.isOnCooldown(ULT_CD_KEY)) {
             player.sendActionBar(color("&cTài Hoa đang hồi! &e" + state.getCooldownRemaining(ULT_CD_KEY) + "s"));
-            return;
-        }
-        if (!dev.elysium.core.api.CoreAPI.useMana(player, ULT_MANA)) {
-            player.sendActionBar(color("&cKhông đủ mana!"));
             return;
         }
 
