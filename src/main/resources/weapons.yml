@@ -354,7 +354,7 @@ weapons:
 
   # ── FLORENTINO ─────────────────────────────────────────────────────────────
 
-  FLORENTINO_SWORD:
+    FLORENTINO_SWORD:
     display-name: "&d&lKiếm Florentino"
     type: SWORD
     class-affinity: NONE
@@ -366,24 +366,24 @@ weapons:
       - HIDE_ATTRIBUTES
     base-damage: 8.0
     base-speed: 1.6
-    mana-cost-skill1: 12
+    mana-cost-skill1: 0
     mana-cost-skill2: 0
-    mana-cost-ultimate: 30
 
     passive:
       id: FLORENTINO_READY
-      description: "Nhặt hoa/20s: Đòn tiếp biến thành Lướt + Hồi 8% Máu"
+      description: "Thưởng Kiếm - Nhặt hoa/20s: Đòn tiếp Lướt + Hồi 8% Máu + -1.5s CD C1"
+      cooldown-reduction-skill1: 1.5
 
     skill1:
       id: FLORENTINO_THROW
       name: "Thưởng Hoa"
       description: "Ném 3 hoa xung quanh (Gây Choáng 0.5s)"
       cooldown: 7
-      mana-cost: 12
+      mana-cost: 0
 
-    ultimate:
+    skill2:
       id: FLORENTINO_ULT
       name: "Tài Hoa"
       description: "Ghim mục tiêu (+25% Dame, x2 Hồi máu, Miễn khống 14s)"
       cooldown: 15
-      mana-cost: 30
+      mana-cost: 0
