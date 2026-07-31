@@ -50,17 +50,37 @@ public class FlorentinoSkill {
         return isInternalDamage;
     }
 
-    private void dealSkillDamage(LivingEntity target, Player damager, double damage) {
+    // ── TỐI ƯU CÔNG THỨC DAME (Sát thương vật lý + Sát thương chuẩn % HP) ──────
+
+    private void dealSkillDamage(LivingEntity target, Player damager, double physicalDmg, double percentHpTrueDmg) {
         isInternalDamage = true;
         try {
-            // Tăng +25% Damage nếu mục tiêu đang bị ghim Ult (Marked)
+            // Tăng +30% Total Damage nếu mục tiêu đang bị ghim Ult (Marked)
             if (isMarked(damager, target)) {
-                damage *= 1.25;
+                physicalDmg *= 1.30;
+                percentHpTrueDmg *= 1.30;
             }
-            target.damage(damage, damager);
+
+            // Tính sát thương chuẩn theo % HP tối đa của mục tiêu
+            double targetMaxHp = target.getMaxHealth();
+            double trueDamage = (targetMaxHp * (percentHpTrueDmg / 100.0));
+
+            // Tổng Dame gây ra
+            double totalDamage = physicalDmg + trueDamage;
+            target.damage(totalDamage, damager);
+
+            // Hiệu ứng hạt nổ Sát Thương Chuẩn
+            if (percentHpTrueDmg > 0) {
+                target.getWorld().spawnParticle(Particle.DAMAGE_INDICATOR, target.getLocation().add(0, 1.2, 0), (int) Math.max(1, percentHpTrueDmg), 0.2, 0.2, 0.2, 0.1);
+            }
         } finally {
             isInternalDamage = false;
         }
+    }
+
+    // Overload cho kỹ năng chỉ gây Dame thường
+    private void dealSkillDamage(LivingEntity target, Player damager, double physicalDmg) {
+        dealSkillDamage(target, damager, physicalDmg, 0.0);
     }
 
     // ── Passive Timer ────────────────────────────────────────────────────────
@@ -82,7 +102,7 @@ public class FlorentinoSkill {
         }.runTaskTimer(plugin, 400L, 400L);
     }
 
-    // ── Skill 1: Ném hoa (Đã xoá Mana) ──────────────────────────────────────
+    // ── Skill 1: Ném hoa ─────────────────────────────────────────────────────
 
     public void throwFlowers(Player player) {
         PlayerWeaponState state = plugin.getWeaponManager().getState(player);
@@ -116,9 +136,10 @@ public class FlorentinoSkill {
                     cancel();
                     if (hit == null) return;
                     
-                    // Stun 0.5s
+                    // Choáng 0.5s & gây 100% Base Dame
                     hit.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 10, 255, false, false, false));
                     hit.addPotionEffect(new PotionEffect(PotionEffectType.JUMP_BOOST, 10, 128, false, false, false));
+                    dealSkillDamage(hit, player, getBaseDamage());
                     
                     spawnFlowersAt(hit.getLocation(), world, player);
                     world.playSound(hit.getLocation(), Sound.BLOCK_CHERRY_LEAVES_PLACE, 0.8f, 1.2f);
@@ -165,18 +186,19 @@ public class FlorentinoSkill {
         double baseDamage = getBaseDamage();
         final double dashDamage = baseDamage * 1.3;
 
+        // Lướt gây: 130% Base Dame + 3.0% Sát thương chuẩn theo HP tối đa
         for (Entity e : player.getWorld().getNearbyEntities(from, 4, 2, 4)) {
             if (!(e instanceof LivingEntity le) || e instanceof Player) continue;
             double t = dotProject(from, flowerLoc, le.getLocation());
             if (t >= 0 && t <= 1.2 && distToLine(from, flowerLoc, le.getLocation()) < 1.5) {
-                dealSkillDamage(le, player, dashDamage);
+                dealSkillDamage(le, player, dashDamage, 3.0);
             }
         }
 
         pickupFlower(player, target, flower, state);
     }
 
-    // ── Nhặt hoa: Trừ thẳng 1.5s hồi chiêu C1 ────────────────────────────────
+    // ── Nhặt hoa: Trừ 1.5s hồi C1 & Hồi HP ────────────────────────────────────
 
     private void pickupFlower(Player player, LivingEntity target, FlowerEntry entry, PlayerWeaponState state) {
         removeFlowerById(player.getWorld(), entry.entityId);
@@ -228,25 +250,28 @@ public class FlorentinoSkill {
         int count = vortexHitCounters.getOrDefault(playerUUID, 0) + 1;
 
         if (count == 1) {
-            dealSkillDamage(target, player, baseDmg * 0.8);
+            // Phát 1: 80% Dame + Slow
+            dealSkillDamage(target, player, baseDmg * 0.8, 0.0);
             target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 30, 1, false, false, false));
             world.playSound(center, Sound.ENTITY_PLAYER_ATTACK_SWEEP, 0.6f, 1.2f);
             player.sendActionBar(color("&d✦ &bThưởng Kiếm 1 &7[Slow]"));
             vortexHitCounters.put(playerUUID, 1);
 
         } else if (count == 2) {
-            dealSkillDamage(target, player, baseDmg * 1.0);
-            target.setVelocity(new Vector(0, 0.35, 0)); // Hất tung 0.35m
+            // Phát 2: 100% Dame + 3% HP True Dmg + Hất tung 0.35m
+            dealSkillDamage(target, player, baseDmg * 1.0, 3.0);
+            target.setVelocity(new Vector(0, 0.35, 0));
             world.playSound(center, Sound.ENTITY_PLAYER_ATTACK_KNOCKBACK, 0.7f, 1.4f);
             player.sendActionBar(color("&d✦ &eThưởng Kiếm 2 &c&l[HẤT TUNG!]"));
             vortexHitCounters.put(playerUUID, 2);
 
         } else {
-            dealSkillDamage(target, player, baseDmg * 1.5);
+            // Phát 3: 160% Dame + 5% HP True Dmg (Nổ mạnh)
+            dealSkillDamage(target, player, baseDmg * 1.6, 5.0);
 
-            world.spawnParticle(Particle.CRIT, target.getLocation().add(0, 1, 0), 10, 0.2, 0.4, 0.2, 0.05);
+            world.spawnParticle(Particle.CRIT, target.getLocation().add(0, 1, 0), 15, 0.2, 0.4, 0.2, 0.1);
             world.playSound(center, Sound.BLOCK_ANVIL_LAND, 0.5f, 1.6f);
-            player.sendActionBar(color("&d✦ &c&lThưởng Kiếm 3"));
+            player.sendActionBar(color("&d✦ &c&lThưởng Kiếm 3 &4[Chí Mạng + True Dmg]"));
             vortexHitCounters.put(playerUUID, 0);
         }
 
@@ -260,7 +285,7 @@ public class FlorentinoSkill {
         return true;
     }
 
-    // ── Ultimate: Tài Hoa (Đã xoá Mana) ──────────────────────────────────────
+    // ── Ultimate: Tài Hoa ─────────────────────────────────────────────────────
 
     public void castUltimate(Player player) {
         PlayerWeaponState state = plugin.getWeaponManager().getState(player);
@@ -314,13 +339,14 @@ public class FlorentinoSkill {
         land.setPitch(player.getLocation().getPitch());
         player.teleport(land);
 
+        // Ult gây 200% Base Dame
         dealSkillDamage(target, player, getBaseDamage() * 2.0);
         spawnFlowersAt(hitLoc, world, player);
 
         target.setGlowing(true);
 
         ArmorStand marker = (ArmorStand) world.spawnEntity(hitLoc.clone().add(0, target.getHeight() + 0.4, 0), EntityType.ARMOR_STAND);
-        marker.setCustomName(color("&c⚔ &4Marked (+25% Dame)"));
+        marker.setCustomName(color("&c⚔ &4Marked (+30% Dame)"));
         marker.setCustomNameVisible(true);
         marker.setGravity(false);
         marker.setVisible(false);
@@ -333,7 +359,7 @@ public class FlorentinoSkill {
         state.addPassiveStack("FLORENTINO_CC_IMMUNE", 1, ULT_DURATION);
 
         world.playSound(hitLoc, Sound.ENTITY_ENDER_DRAGON_HURT, 0.5f, 1.6f);
-        player.sendActionBar(color("&5✦ &d&lTài Hoa! &7[Ghim Mục Tiêu] &a[Miễn CC 14s]"));
+        player.sendActionBar(color("&5✦ &d&lTài Hoa! &7[Ghim Mục Tiêu +30% Dame] &a[Miễn CC 14s]"));
 
         new BukkitRunnable() {
             int ticks = 0;
@@ -454,18 +480,4 @@ public class FlorentinoSkill {
         double apx = p.getX()-a.getX(), apz = p.getZ()-a.getZ();
         double cross = abx*apz - abz*apx;
         double ab = Math.sqrt(abx*abx + abz*abz);
-        return ab == 0 ? Math.sqrt(apx*apx+apz*apz) : Math.abs(cross)/ab;
-    }
-
-    public static class FlowerEntry {
-        public final int      entityId;
-        public final Location location;
-        public final long     expireMs;
-
-        FlowerEntry(int entityId, Location location, long expireMs) {
-            this.entityId = entityId;
-            this.location = location;
-            this.expireMs = expireMs;
-        }
-    }
-            }
+        return ab == 0 ? Math.sqrt(apx*
