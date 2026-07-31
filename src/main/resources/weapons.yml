@@ -354,7 +354,7 @@ weapons:
 
   # ── FLORENTINO ─────────────────────────────────────────────────────────────
 
-    FLORENTINO_SWORD:
+  FLORENTINO_SWORD:
     display-name: "&d&lKiếm Florentino"
     type: SWORD
     class-affinity: NONE
@@ -384,6 +384,7 @@ weapons:
     skill2:
       id: FLORENTINO_ULT
       name: "Tài Hoa"
-      description: "Ghim mục tiêu (+25% Dame, x2 Hồi máu, Miễn khống 14s)"
+      description: "Ghim mục tiêu (+30% Dame, x2 Hồi máu, Miễn khống 14s)"
       cooldown: 15
       mana-cost: 0
+      
