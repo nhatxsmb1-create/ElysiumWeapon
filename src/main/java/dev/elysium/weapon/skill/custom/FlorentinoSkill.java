@@ -50,7 +50,7 @@ public class FlorentinoSkill {
         return isInternalDamage;
     }
 
-    // ── TỐI ƯU CÔNG THỨC DAME (Sát thương vật lý + Sát thương chuẩn % HP) ──────
+    // ── TỐI ƯU CÔNG THỨC DAME ──────────────────────────────────────────────────
 
     private void dealSkillDamage(LivingEntity target, Player damager, double physicalDmg, double percentHpTrueDmg) {
         isInternalDamage = true;
@@ -78,7 +78,6 @@ public class FlorentinoSkill {
         }
     }
 
-    // Overload cho kỹ năng chỉ gây Dame thường
     private void dealSkillDamage(LivingEntity target, Player damager, double physicalDmg) {
         dealSkillDamage(target, damager, physicalDmg, 0.0);
     }
@@ -136,7 +135,6 @@ public class FlorentinoSkill {
                     cancel();
                     if (hit == null) return;
                     
-                    // Choáng 0.5s & gây 100% Base Dame
                     hit.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 10, 255, false, false, false));
                     hit.addPotionEffect(new PotionEffect(PotionEffectType.JUMP_BOOST, 10, 128, false, false, false));
                     dealSkillDamage(hit, player, getBaseDamage());
@@ -186,7 +184,6 @@ public class FlorentinoSkill {
         double baseDamage = getBaseDamage();
         final double dashDamage = baseDamage * 1.3;
 
-        // Lướt gây: 130% Base Dame + 3.0% Sát thương chuẩn theo HP tối đa
         for (Entity e : player.getWorld().getNearbyEntities(from, 4, 2, 4)) {
             if (!(e instanceof LivingEntity le) || e instanceof Player) continue;
             double t = dotProject(from, flowerLoc, le.getLocation());
@@ -198,7 +195,7 @@ public class FlorentinoSkill {
         pickupFlower(player, target, flower, state);
     }
 
-    // ── Nhặt hoa: Trừ 1.5s hồi C1 & Hồi HP ────────────────────────────────────
+    // ── Nhặt hoa ──────────────────────────────────────────────────────────────
 
     private void pickupFlower(Player player, LivingEntity target, FlowerEntry entry, PlayerWeaponState state) {
         removeFlowerById(player.getWorld(), entry.entityId);
@@ -208,20 +205,16 @@ public class FlorentinoSkill {
         state.clearPassiveStack(VORTEX_KEY);
         state.addPassiveStack(VORTEX_KEY, 3, 200);
 
-        // Hồi máu
         double maxHp = player.getMaxHealth();
         double healAmount = maxHp * 0.08;
 
         if (target != null && isMarked(player, target)) {
-            healAmount *= 2.0; // x2 Hồi máu chuẩn LQ
+            healAmount *= 2.0;
         }
 
         player.setHealth(Math.min(maxHp, player.getHealth() + healAmount));
-
-        // Tăng tốc chạy Speed II trong 1.2s
         player.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 25, 1, false, false, false));
 
-        // Trừ 1.5s hồi chiêu Chiêu 1 ngay khi nhặt hoa
         if (state.isOnCooldown(SKILL1_CD)) {
             double remaining = state.getCooldownRemaining(SKILL1_CD);
             int newCd = (int) Math.max(0, Math.round(remaining - 1.5));
@@ -250,7 +243,6 @@ public class FlorentinoSkill {
         int count = vortexHitCounters.getOrDefault(playerUUID, 0) + 1;
 
         if (count == 1) {
-            // Phát 1: 80% Dame + Slow
             dealSkillDamage(target, player, baseDmg * 0.8, 0.0);
             target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 30, 1, false, false, false));
             world.playSound(center, Sound.ENTITY_PLAYER_ATTACK_SWEEP, 0.6f, 1.2f);
@@ -258,7 +250,6 @@ public class FlorentinoSkill {
             vortexHitCounters.put(playerUUID, 1);
 
         } else if (count == 2) {
-            // Phát 2: 100% Dame + 3% HP True Dmg + Hất tung 0.35m
             dealSkillDamage(target, player, baseDmg * 1.0, 3.0);
             target.setVelocity(new Vector(0, 0.35, 0));
             world.playSound(center, Sound.ENTITY_PLAYER_ATTACK_KNOCKBACK, 0.7f, 1.4f);
@@ -266,7 +257,6 @@ public class FlorentinoSkill {
             vortexHitCounters.put(playerUUID, 2);
 
         } else {
-            // Phát 3: 160% Dame + 5% HP True Dmg (Nổ mạnh)
             dealSkillDamage(target, player, baseDmg * 1.6, 5.0);
 
             world.spawnParticle(Particle.CRIT, target.getLocation().add(0, 1, 0), 15, 0.2, 0.4, 0.2, 0.1);
@@ -339,7 +329,6 @@ public class FlorentinoSkill {
         land.setPitch(player.getLocation().getPitch());
         player.teleport(land);
 
-        // Ult gây 200% Base Dame
         dealSkillDamage(target, player, getBaseDamage() * 2.0);
         spawnFlowersAt(hitLoc, world, player);
 
@@ -480,4 +469,18 @@ public class FlorentinoSkill {
         double apx = p.getX()-a.getX(), apz = p.getZ()-a.getZ();
         double cross = abx*apz - abz*apx;
         double ab = Math.sqrt(abx*abx + abz*abz);
-        return ab == 0 ? Math.sqrt(apx*
+        return ab == 0 ? Math.sqrt(apx*apx+apz*apz) : Math.abs(cross)/ab;
+    }
+
+    public static class FlowerEntry {
+        public final int      entityId;
+        public final Location location;
+        public final long     expireMs;
+
+        FlowerEntry(int entityId, Location location, long expireMs) {
+            this.entityId = entityId;
+            this.location = location;
+            this.expireMs = expireMs;
+        }
+    }
+}
