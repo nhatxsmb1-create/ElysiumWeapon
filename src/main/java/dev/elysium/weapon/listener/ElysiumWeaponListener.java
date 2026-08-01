@@ -56,7 +56,7 @@ public class ElysiumWeaponListener implements Listener {
                 // Tung chiêu & Đăng ký cooldown vào ActionBar
                 boolean success = florentinoSkill.throwFlowers(player);
                 if (success && weapon.getSkill1() != null) {
-                    state.setCooldown(weapon.getSkill1().getId(), weapon.getSkill1().getCooldownMs());
+                    state.setCooldown(weapon.getSkill1().getId(), weapon.getSkill1().getCooldown());
                 }
                 return;
             } 
@@ -73,7 +73,7 @@ public class ElysiumWeaponListener implements Listener {
                 
                 boolean success = florentinoSkill.castUltimate(player);
                 if (success && ultSkill != null) {
-                    state.setCooldown(ultSkill.getId(), ultSkill.getCooldownMs());
+                    state.setCooldown(ultSkill.getId(), ultSkill.getCooldown());
                 }
                 return;
             }
