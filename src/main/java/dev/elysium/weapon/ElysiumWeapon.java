@@ -11,8 +11,12 @@ import dev.elysium.weapon.listener.WeaponListener;
 import dev.elysium.weapon.mastery.WeaponMastery;
 import dev.elysium.weapon.skill.SkillEngine;
 import dev.elysium.weapon.util.CooldownActionbarTask;
+import dev.elysium.weapon.weapon.PlayerWeaponState;
 import dev.elysium.weapon.weapon.WeaponManager;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
+
+import java.util.Map;
 
 public class ElysiumWeapon extends JavaPlugin {
 
@@ -24,7 +28,6 @@ public class ElysiumWeapon extends JavaPlugin {
     private SkillEngine           skillEngine;
     private WeaponMastery         weaponMastery;
     private CooldownActionbarTask cooldownActionbar;
-    private dev.elysium.weapon.listener.DatabaseListener databaseListener;
 
     @Override
     public void onEnable() {
@@ -52,9 +55,7 @@ public class ElysiumWeapon extends JavaPlugin {
 
         // Listeners
         getServer().getPluginManager().registerEvents(new WeaponListener(this), this);
-        databaseListener = new DatabaseListener(this);
-        getServer().getPluginManager().registerEvents(databaseListener, this);
-        databaseListener.startAutoSave();
+        getServer().getPluginManager().registerEvents(new DatabaseListener(this), this);
         getServer().getPluginManager().registerEvents(new GuiListener(), this);
 
         // Start cooldown actionbar
@@ -67,22 +68,19 @@ public class ElysiumWeapon extends JavaPlugin {
     @Override
     public void onDisable() {
         // Dung actionbar task
-        if (cooldownActionbar    != null) cooldownActionbar.stop();
-        if (databaseListener   != null) databaseListener.stopAutoSave();
+        if (cooldownActionbar != null) cooldownActionbar.stop();
 
         // Save tat ca player data DONG BO truoc khi shutdown
-        // Phai dung sync, async se bi huy truoc khi chay xong
-        for (org.bukkit.entity.Player p : getServer().getOnlinePlayers()) {
-            var state  = weaponManager.getState(p);
-            var allExp = state.getAllWeaponExp();
-            if (!allExp.isEmpty()) {
-                weaponDatabase.saveAllWeaponExpSync(p.getUniqueId(), allExp);
-                getLogger().info("[WeaponDB] Saved " + allExp.size()
-                        + " weapon(s) for " + p.getName());
+        if (weaponDatabase != null) {
+            for (Player p : getServer().getOnlinePlayers()) {
+                PlayerWeaponState state = weaponManager.getState(p);
+                Map<String, Long> allExp = state.getAllWeaponExp();
+                if (!allExp.isEmpty()) {
+                    weaponDatabase.saveAllWeaponExpSync(p.getUniqueId(), allExp);
+                }
             }
+            weaponDatabase.close();
         }
-
-        if (weaponDatabase != null) weaponDatabase.close();
         getLogger().info("ElysiumWeapon disabled.");
     }
 
