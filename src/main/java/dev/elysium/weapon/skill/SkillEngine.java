@@ -35,7 +35,7 @@ public class SkillEngine {
                 player.sendMessage(color("&cKhong du Mana! (" + ep.getMana() + "/" + manaCost + ")"));
                 return;
             }
-            ep.removeMana(manaCost);
+            ep.useMana(manaCost);
         } catch (Exception ignored) {}
 
         // Kiem tra cooldown
