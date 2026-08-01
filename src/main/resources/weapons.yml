@@ -351,3 +351,40 @@ weapons:
       animation: IAIDO_COMBO
       particle: CRIT
       sound: ENTITY_PLAYER_ATTACK_CRIT
+
+  # ── FLORENTINO ─────────────────────────────────────────────────────────────
+
+  FLORENTINO_SWORD:
+    display-name: "&d&lKiếm Florentino"
+    type: SWORD
+    class-affinity: NONE
+    material: GOLDEN_SWORD
+    model-data: 5001
+    unbreakable: true
+    hide-flags:
+      - HIDE_UNBREAKABLE
+      - HIDE_ATTRIBUTES
+    base-damage: 8.0
+    base-speed: 1.6
+    mana-cost-skill1: 0
+    mana-cost-skill2: 0
+
+    passive:
+      id: FLORENTINO_READY
+      description: "Thưởng Kiếm - Nhặt hoa/20s: Đòn tiếp Lướt + Hồi 8% Máu + -1.5s CD C1"
+      cooldown-reduction-skill1: 1.5
+
+    skill1:
+      id: FLORENTINO_THROW
+      name: "Thưởng Hoa"
+      description: "Ném 3 hoa xung quanh (Gây Choáng 0.5s)"
+      cooldown: 7
+      mana-cost: 0
+
+    skill2:
+      id: FLORENTINO_ULT
+      name: "Tài Hoa"
+      description: "Ghim mục tiêu (+30% Dame, x2 Hồi máu, Miễn khống 14s)"
+      cooldown: 15
+      mana-cost: 0
+      
