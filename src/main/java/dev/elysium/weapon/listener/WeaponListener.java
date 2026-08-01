@@ -42,7 +42,7 @@ public class WeaponListener implements Listener {
         boolean rightClick = action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK;
         boolean leftClick  = action == Action.LEFT_CLICK_AIR  || action == Action.LEFT_CLICK_BLOCK;
 
-        // 🟢 FIX FLORENTINO: Bắt nút bấm riêng cho Kiếm Florentino
+        // Bắt nút bấm cho Kiếm Florentino
         if ("FLORENTINO_SWORD".equalsIgnoreCase(weapon.getId())) {
             if (rightClick && !shift) {
                 e.setCancelled(true);
@@ -50,12 +50,12 @@ public class WeaponListener implements Listener {
                 return;
             } else if (rightClick && shift) {
                 e.setCancelled(true);
-                florentinoSkill.castUltimate(player); // Ult: Tài Hoa (Ghim + Buff)
+                florentinoSkill.castUltimate(player); // Ult: Tài Hoa
                 return;
             }
         }
 
-        // Xử lý các vũ khí thường qua SkillEngine
+        // Vũ khí thường
         if (rightClick && !shift) {
             e.setCancelled(true);
             if (weapon.getSkill1() != null) {
@@ -74,11 +74,11 @@ public class WeaponListener implements Listener {
         }
     }
 
-    // ── Attack & Combo Detection (Chém / Lướt / Thưởng Kiếm) ──────────────────
+    // ── Attack & Combo Detection ──────────────────────────────────────────────
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onAttack(EntityDamageByEntityEvent e) {
-        // 🟢 FIX FLORENTINO: Bỏ qua nếu sát thương do FlorentinoSkill tự gây ra (Tránh lặp vô tận)
+        // Bỏ qua nếu sát thương do FlorentinoSkill tự gây ra
         if (florentinoSkill.isInternalDamage()) return;
 
         if (!(e.getDamager() instanceof Player player)) return;
@@ -89,19 +89,19 @@ public class WeaponListener implements Listener {
 
         PlayerWeaponState state = plugin.getWeaponManager().getState(player);
 
-        // 🟢 FIX FLORENTINO: Xử lý Lướt Nhặt Hoa & Combo Thưởng Kiếm (C2)
+        // 🟢 FIX VẤN ĐỀ LƯỚT HOA: ƯU TIÊN LƯỚT NHẶT HOA TRƯỚC!
         if ("FLORENTINO_SWORD".equalsIgnoreCase(weapon.getId())) {
-            // 1. Nếu đang có stack Thưởng Kiếm -> Tung chiêu 2 (Slow / Hất tung / True Dmg)
-            if (florentinoSkill.onHitDuringVortex(player, target, state)) {
+            // 1. Nếu trên sàn có hoa -> BẬT LƯỚT TELEPORT NGAY LẬP TỨC (Lần chém nào có hoa cũng lướt)
+            if (florentinoSkill.handleHitAndDash(player, target, state)) {
                 return;
             }
-            // 2. Nếu đánh trúng mà có hoa gần đó -> Lướt nhặt hoa + hồi máu + trừ CD C1
-            if (florentinoSkill.handleHitAndDash(player, target, state)) {
+            // 2. Không có hoa quanh đó -> Mới tung chiêu 2 Thưởng Kiếm (Slow / Hất tung / True Dmg)
+            if (florentinoSkill.onHitDuringVortex(player, target, state)) {
                 return;
             }
         }
 
-        // Override damage với base damage của weapon
+        // Sát thương mặc định
         e.setDamage(weapon.getBaseDamage());
 
         // Passive xử lý
@@ -113,7 +113,7 @@ public class WeaponListener implements Listener {
 
         if (clicks >= weapon.getCombo().getTriggerClicks() && !state.isComboActive()) {
             state.setComboActive(true);
-            e.setCancelled(true); // Cancel normal hit, replace bằng combo
+            e.setCancelled(true);
             plugin.getSkillEngine().executeCombo(player, weapon, weapon.getCombo(), state);
         }
     }
@@ -128,14 +128,10 @@ public class WeaponListener implements Listener {
         PlayerWeaponState state = plugin.getWeaponManager().getState(player);
 
         switch (weapon.getPassive().getId()) {
-
             case "MOMENTUM" -> {
                 int stacks = state.getPassiveStack("MOMENTUM");
-                if (stacks > 0) {
-                    event.setDamage(event.getDamage() * (1 + stacks * 0.05));
-                }
+                if (stacks > 0) event.setDamage(event.getDamage() * (1 + stacks * 0.05));
             }
-
             case "HEAVY_BLOW" -> {
                 int chargeCount = weapon.getPassive().getInt("charge-count", 4);
                 int hitCount    = state.incrementHitCount();
@@ -147,7 +143,6 @@ public class WeaponListener implements Listener {
                     player.sendActionBar(color("&6&l⚡ Heavy Blow!"));
                 }
             }
-
             case "FROSTBITE" -> {
                 double chillChance = weapon.getPassive().getDouble("chill-chance", 0.2);
                 if (Math.random() < chillChance) {
@@ -163,7 +158,6 @@ public class WeaponListener implements Listener {
                     }
                 }
             }
-
             case "EAGLE_EYE" -> {
                 if (player.getVelocity().lengthSquared() < 0.01) {
                     double bonus = weapon.getPassive().getDouble("damage-bonus", 0.4);
@@ -171,7 +165,6 @@ public class WeaponListener implements Listener {
                     player.sendActionBar(color("&a🎯 Eagle Eye! +40% Dame"));
                 }
             }
-
             case "LETHAL_TEMPO" -> {
                 double backstabMult = weapon.getPassive().getDouble("backstab-multiplier", 1.5);
                 double angle = getAngleBehind(player, target);
@@ -180,7 +173,6 @@ public class WeaponListener implements Listener {
                     player.sendActionBar(color("&5🗡 Backstab! +50% Dame"));
                 }
             }
-
             case "ISSEN_READY" -> {
                 if (state.getPassiveStack("ISSEN_READY") > 0) {
                     double dmgMult = 6.0;
