@@ -25,6 +25,8 @@ public class ElysiumWeaponListener implements Listener {
         this.florentinoSkill = new FlorentinoSkill(plugin);
     }
 
+    // ── Click Detection (Dùng Chiêu & Cập nhật Cooldown ActionBar) ───────────
+
     @EventHandler(priority = EventPriority.HIGH)
     public void onInteract(PlayerInteractEvent e) {
         if (e.getHand() != EquipmentSlot.HAND) return;
@@ -39,18 +41,45 @@ public class ElysiumWeaponListener implements Listener {
         boolean rightClick = action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK;
         boolean leftClick  = action == Action.LEFT_CLICK_AIR  || action == Action.LEFT_CLICK_BLOCK;
 
+        // ⚔️ Xử lý riêng cho Kiếm Florentino (Ghi nhận Cooldown lên ActionBar)
         if ("FLORENTINO_SWORD".equalsIgnoreCase(weapon.getId())) {
+            
+            // Chiêu 1: Thưởng Hoa (Phải chuột)
             if (rightClick && !shift) {
                 e.setCancelled(true);
-                florentinoSkill.throwFlowers(player);
+                
+                // Kiểm tra nếu đang đếm ngược cooldown thì chặn
+                if (weapon.getSkill1() != null && state.isOnCooldown(weapon.getSkill1().getId())) {
+                    return;
+                }
+                
+                // Tung chiêu & Đăng ký cooldown vào ActionBar
+                boolean success = florentinoSkill.throwFlowers(player);
+                if (success && weapon.getSkill1() != null) {
+                    state.setCooldown(weapon.getSkill1().getId(), weapon.getSkill1().getCooldownMs());
+                }
                 return;
-            } else if (rightClick && shift) {
+            } 
+            
+            // Ult: Tài Hoa (Shift + Phải chuột)
+            else if (rightClick && shift) {
                 e.setCancelled(true);
-                florentinoSkill.castUltimate(player);
+                
+                var ultSkill = weapon.getSkill2() != null ? weapon.getSkill2() : weapon.getUltimate();
+                
+                if (ultSkill != null && state.isOnCooldown(ultSkill.getId())) {
+                    return;
+                }
+                
+                boolean success = florentinoSkill.castUltimate(player);
+                if (success && ultSkill != null) {
+                    state.setCooldown(ultSkill.getId(), ultSkill.getCooldownMs());
+                }
                 return;
             }
         }
 
+        // Vũ khí thường
         if (rightClick && !shift) {
             e.setCancelled(true);
             if (weapon.getSkill1() != null) {
@@ -68,6 +97,8 @@ public class ElysiumWeaponListener implements Listener {
             }
         }
     }
+
+    // ── Attack & Combo Detection ──────────────────────────────────────────────
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onAttack(EntityDamageByEntityEvent e) {
@@ -102,6 +133,8 @@ public class ElysiumWeaponListener implements Listener {
             plugin.getSkillEngine().executeCombo(player, weapon, weapon.getCombo(), state);
         }
     }
+
+    // ── Passive Handling ──────────────────────────────────────────────────────
 
     private void handlePassive(Player player, WeaponData weapon,
                                 LivingEntity target,
@@ -167,6 +200,8 @@ public class ElysiumWeaponListener implements Listener {
         }
     }
 
+    // ── Weapon Switch ─────────────────────────────────────────────────────────
+
     @EventHandler
     public void onWeaponSwitch(PlayerItemHeldEvent e) {
         Player player = e.getPlayer();
@@ -176,6 +211,8 @@ public class ElysiumWeaponListener implements Listener {
         state.resetCombo();
     }
 
+    // ── Utils ─────────────────────────────────────────────────────────────────
+
     private double getAngleBehind(Player attacker, LivingEntity target) {
         org.bukkit.util.Vector toAttacker = attacker.getLocation()
                 .subtract(target.getLocation()).toVector().normalize();
@@ -184,4 +221,4 @@ public class ElysiumWeaponListener implements Listener {
     }
 
     private String color(String s) { return s.replace("&", "\u00a7"); }
-                  }
+}
