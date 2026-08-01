@@ -2,6 +2,7 @@ package dev.elysium.weapon.skill.custom;
 
 import dev.elysium.weapon.ElysiumWeapon;
 import dev.elysium.weapon.weapon.PlayerWeaponState;
+import dev.elysium.weapon.weapon.WeaponData;
 import org.bukkit.*;
 import org.bukkit.entity.*;
 import org.bukkit.inventory.ItemStack;
@@ -19,7 +20,6 @@ public class FlorentinoSkill {
     // ── Keys & Config ────────────────────────────────────────────────────────
     public static final String PASSIVE_KEY   = "FLORENTINO_READY";
     public static final String CD_KEY        = "FLORENTINO_PASSIVE_CD";
-    public static final int    PASSIVE_CD    = 20;   // giay
 
     public static final String SKILL1_CD     = "FLORENTINO_SKILL1_CD";
     public static final int    SKILL1_CD_S   = 7;    // giay
@@ -50,26 +50,41 @@ public class FlorentinoSkill {
         return isInternalDamage;
     }
 
+    // Lấy ID Cooldown Skill 1 để ActionBar nhận diện được
+    private String getSkill1Id(Player player) {
+        WeaponData wd = plugin.getWeaponManager().getHeldWeaponData(player);
+        if (wd != null && wd.getSkill1() != null) {
+            return wd.getSkill1().getId();
+        }
+        return SKILL1_CD;
+    }
+
+    // Lấy ID Cooldown Ult/Skill 2 để ActionBar nhận diện được
+    private String getUltId(Player player) {
+        WeaponData wd = plugin.getWeaponManager().getHeldWeaponData(player);
+        if (wd != null) {
+            if (wd.getSkill2() != null) return wd.getSkill2().getId();
+            if (wd.getUltimate() != null) return wd.getUltimate().getId();
+        }
+        return ULT_CD_KEY;
+    }
+
     // ── TỐI ƯU CÔNG THỨC DAME ──────────────────────────────────────────────────
 
     private void dealSkillDamage(LivingEntity target, Player damager, double physicalDmg, double percentHpTrueDmg) {
         isInternalDamage = true;
         try {
-            // Tăng +30% Total Damage nếu mục tiêu đang bị ghim Ult (Marked)
             if (isMarked(damager, target)) {
                 physicalDmg *= 1.30;
                 percentHpTrueDmg *= 1.30;
             }
 
-            // Tính sát thương chuẩn theo % HP tối đa của mục tiêu
             double targetMaxHp = target.getMaxHealth();
             double trueDamage = (targetMaxHp * (percentHpTrueDmg / 100.0));
-
-            // Tổng Dame gây ra
             double totalDamage = physicalDmg + trueDamage;
+
             target.damage(totalDamage, damager);
 
-            // Hiệu ứng hạt nổ Sát Thương Chuẩn
             if (percentHpTrueDmg > 0) {
                 target.getWorld().spawnParticle(Particle.DAMAGE_INDICATOR, target.getLocation().add(0, 1.2, 0), (int) Math.max(1, percentHpTrueDmg), 0.2, 0.2, 0.2, 0.1);
             }
@@ -105,12 +120,15 @@ public class FlorentinoSkill {
 
     public void throwFlowers(Player player) {
         PlayerWeaponState state = plugin.getWeaponManager().getState(player);
+        String s1Id = getSkill1Id(player);
 
-        if (state.isOnCooldown(SKILL1_CD)) {
-            player.sendActionBar(color("&cNém Hoa đang hồi! &e" + state.getCooldownRemaining(SKILL1_CD) + "s"));
+        if (state.isOnCooldown(s1Id) || state.isOnCooldown(SKILL1_CD)) {
+            player.sendActionBar(color("&cNém Hoa đang hồi! &e" + state.getCooldownRemaining(s1Id) + "s"));
             return;
         }
 
+        // Đăng ký Cooldown vào cả 2 key để hiển thị ActionBar chuẩn
+        state.setCooldown(s1Id, SKILL1_CD_S);
         state.setCooldown(SKILL1_CD, SKILL1_CD_S);
 
         World world = player.getWorld();
@@ -215,9 +233,12 @@ public class FlorentinoSkill {
         player.setHealth(Math.min(maxHp, player.getHealth() + healAmount));
         player.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 25, 1, false, false, false));
 
-        if (state.isOnCooldown(SKILL1_CD)) {
-            double remaining = state.getCooldownRemaining(SKILL1_CD);
+        // Giảm hồi chiêu C1 đi 1.5s & Cập nhật thẳng lên ActionBar
+        String s1Id = getSkill1Id(player);
+        if (state.isOnCooldown(s1Id) || state.isOnCooldown(SKILL1_CD)) {
+            double remaining = state.getCooldownRemaining(s1Id);
             int newCd = (int) Math.max(0, Math.round(remaining - 1.5));
+            state.setCooldown(s1Id, newCd);
             state.setCooldown(SKILL1_CD, newCd);
         }
 
@@ -279,12 +300,15 @@ public class FlorentinoSkill {
 
     public void castUltimate(Player player) {
         PlayerWeaponState state = plugin.getWeaponManager().getState(player);
+        String ultId = getUltId(player);
 
-        if (state.isOnCooldown(ULT_CD_KEY)) {
-            player.sendActionBar(color("&cTài Hoa đang hồi! &e" + state.getCooldownRemaining(ULT_CD_KEY) + "s"));
+        if (state.isOnCooldown(ultId) || state.isOnCooldown(ULT_CD_KEY)) {
+            player.sendActionBar(color("&cTài Hoa đang hồi! &e" + state.getCooldownRemaining(ultId) + "s"));
             return;
         }
 
+        // Đăng ký Cooldown Ult lên ActionBar
+        state.setCooldown(ultId, ULT_CD_S);
         state.setCooldown(ULT_CD_KEY, ULT_CD_S);
 
         World world = player.getWorld();
@@ -483,4 +507,4 @@ public class FlorentinoSkill {
             this.expireMs = expireMs;
         }
     }
-        }
+}
