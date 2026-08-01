@@ -6,8 +6,8 @@ import dev.elysium.weapon.command.WeaponAdminCommand;
 import dev.elysium.weapon.command.WeaponCommand;
 import dev.elysium.weapon.database.WeaponDatabase;
 import dev.elysium.weapon.gui.GuiListener;
-import dev.elysium.weapon.listener.DatabaseListener;
-import dev.elysium.weapon.listener.WeaponListener;
+import dev.elysium.weapon.listener.ElysiumDatabaseListener;
+import dev.elysium.weapon.listener.ElysiumWeaponListener;
 import dev.elysium.weapon.mastery.WeaponMastery;
 import dev.elysium.weapon.skill.SkillEngine;
 import dev.elysium.weapon.util.CooldownActionbarTask;
@@ -36,11 +36,9 @@ public class ElysiumWeapon extends JavaPlugin {
         saveDefaultConfig();
         saveResource("weapons.yml", false);
 
-        // Database truoc tien
         weaponDatabase    = new WeaponDatabase(this);
         weaponDatabase.initialize();
 
-        // Engines
         animationEngine   = new AnimationEngine(this);
         weaponManager     = new WeaponManager(this);
         skillEngine       = new SkillEngine(this, animationEngine);
@@ -49,16 +47,13 @@ public class ElysiumWeapon extends JavaPlugin {
 
         WeaponAPI.init(this);
 
-        // Commands
         getCommand("weapon").setExecutor(new WeaponCommand(this));
         getCommand("weaponadmin").setExecutor(new WeaponAdminCommand(this));
 
-        // Listeners
-        getServer().getPluginManager().registerEvents(new WeaponListener(this), this);
-        getServer().getPluginManager().registerEvents(new DatabaseListener(this), this);
+        getServer().getPluginManager().registerEvents(new ElysiumWeaponListener(this), this);
+        getServer().getPluginManager().registerEvents(new ElysiumDatabaseListener(this), this);
         getServer().getPluginManager().registerEvents(new GuiListener(), this);
 
-        // Start cooldown actionbar
         cooldownActionbar.start();
 
         getLogger().info("=== ElysiumWeapon v" + getDescription().getVersion() + " enabled! ===");
@@ -67,10 +62,8 @@ public class ElysiumWeapon extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        // Dung actionbar task
         if (cooldownActionbar != null) cooldownActionbar.stop();
 
-        // Save tat ca player data DONG BO truoc khi shutdown
         if (weaponDatabase != null) {
             for (Player p : getServer().getOnlinePlayers()) {
                 PlayerWeaponState state = weaponManager.getState(p);
