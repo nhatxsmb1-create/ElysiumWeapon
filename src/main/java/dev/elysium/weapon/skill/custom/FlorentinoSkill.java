@@ -45,7 +45,7 @@ public class FlorentinoSkill {
         spawnFlower(player, center.clone().add(dir.clone().multiply(4.5)));
         spawnFlower(player, center.clone().add(dir.clone().multiply(3)).subtract(right.clone().multiply(2.5)));
 
-        player.playSound(player.getLocation(), Sound.ENTITY_FLOWER_POT_EAT, 1.0f, 1.5f);
+        player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.5f);
         player.getWorld().spawnParticle(Particle.HEART, player.getLocation().add(0, 1, 0), 15, 0.3, 0.3, 0.3, 0.1);
 
         return true;
@@ -79,7 +79,7 @@ public class FlorentinoSkill {
         ultActivePlayers.add(uuid);
 
         player.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 100, 1));
-        player.playSound(player.getLocation(), Sound.ITEM_TRIDENT_THUNDER, 1.0f, 1.2f);
+        player.playSound(player.getLocation(), Sound.ENTITY_LIGHTNING_BOLT_THUNDER, 1.0f, 1.2f);
         player.getWorld().spawnParticle(Particle.TOTEM_OF_UNDYING, player.getLocation().add(0, 1, 0), 30, 0.5, 0.5, 0.5, 0.2);
 
         // Hết 5s thì tắt trạng thái Ult
@@ -145,9 +145,8 @@ public class FlorentinoSkill {
                     flower.stand.remove();
                     it.remove();
                 } else {
-                    flower.stand.getWorld().spawnParticle(Particle.DUST, 
-                            flower.stand.getLocation().add(0, 1.2, 0), 1, 
-                            new Particle.DustOptions(org.bukkit.Color.fromRGB(255, 105, 180), 1.0f));
+                    flower.stand.getWorld().spawnParticle(Particle.HEART, 
+                            flower.stand.getLocation().add(0, 1.2, 0), 1, 0.1, 0.1, 0.1, 0.0);
                 }
             }
         }, 5L, 5L);
