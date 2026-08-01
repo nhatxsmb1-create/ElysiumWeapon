@@ -56,7 +56,7 @@ public class CooldownActionbarTask {
 
         // Skill 2
         if (weapon.getSkill2() != null) {
-            bar.append(buildSkillSlot("Sh+P.P", weapon.getSkill2().getId(), state));
+            bar.append(buildSkillSlot("Sh+Phải", weapon.getSkill2().getId(), state));
             bar.append("  ");
         }
 
