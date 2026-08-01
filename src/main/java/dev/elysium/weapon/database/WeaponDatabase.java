@@ -9,12 +9,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-/**
- * WeaponDatabase - luu tru Weapon EXP va Mastery data.
- * Dung SQLite standalone, co the doi sang MySQL sau.
- * ElysiumCore chi luu PlayerData (level, balance, mana...).
- * WeaponDatabase luu weapon-specific data de gon gang.
- */
 public class WeaponDatabase {
 
     private final ElysiumWeapon plugin;
@@ -24,14 +18,11 @@ public class WeaponDatabase {
         this.plugin = plugin;
     }
 
-    // ── Init ──────────────────────────────────────────────────────────────────
-
     public void initialize() {
         try {
             File dbFile = new File(plugin.getDataFolder(), "weapon_data.db");
             String url  = "jdbc:sqlite:" + dbFile.getAbsolutePath();
             connection  = DriverManager.getConnection(url);
-            connection.setAutoCommit(true);
 
             createTables();
             plugin.getLogger().info("[WeaponDB] SQLite connected.");
@@ -54,9 +45,6 @@ public class WeaponDatabase {
         }
     }
 
-    // ── Load ──────────────────────────────────────────────────────────────────
-
-    /** Load toan bo weapon EXP cua 1 player */
     public Map<String, Long> loadWeaponExp(UUID uuid) {
         Map<String, Long> result = new HashMap<>();
         String sql = "SELECT weapon_id, exp FROM weapon_mastery WHERE uuid = ?";
@@ -73,11 +61,7 @@ public class WeaponDatabase {
         return result;
     }
 
-    // ── Save ──────────────────────────────────────────────────────────────────
-
-    /** Luu 1 weapon EXP (upsert) */
     public void saveWeaponExp(UUID uuid, String weaponId, long exp) {
-        // Async de khong lag main thread
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             String sql = """
                 INSERT INTO weapon_mastery (uuid, weapon_id, exp)
@@ -95,53 +79,31 @@ public class WeaponDatabase {
         });
     }
 
-    /** Luu toan bo weapon EXP cua 1 player (khi logout) */
     public void saveAllWeaponExp(UUID uuid, Map<String, Long> expMap) {
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-            String sql = """
-                INSERT INTO weapon_mastery (uuid, weapon_id, exp)
-                VALUES (?, ?, ?)
-                ON CONFLICT(uuid, weapon_id) DO UPDATE SET exp = excluded.exp
-            """;
-            try (PreparedStatement ps = connection.prepareStatement(sql)) {
-                for (Map.Entry<String, Long> entry : expMap.entrySet()) {
-                    ps.setString(1, uuid.toString());
-                    ps.setString(2, entry.getKey());
-                    ps.setLong(3, entry.getValue());
-                    ps.addBatch();
-                }
-                ps.executeBatch();
-            } catch (SQLException e) {
-                plugin.getLogger().warning("[WeaponDB] SaveAll error: " + e.getMessage());
-            }
+            saveAllWeaponExpSync(uuid, expMap);
         });
     }
 
-    // ── Save Sync (dung khi shutdown) ────────────────────────────────────────────
-
-    /** Save dong bo - KHONG async, dung khi server dang tat */
-    public void saveAllWeaponExpSync(java.util.UUID uuid, java.util.Map<String, Long> expMap) {
-        if (expMap.isEmpty()) return;
+    /** Luu toan bo weapon EXP dong bo (Dung rieng cho shutdown server) */
+    public void saveAllWeaponExpSync(UUID uuid, Map<String, Long> expMap) {
         String sql = """
             INSERT INTO weapon_mastery (uuid, weapon_id, exp)
             VALUES (?, ?, ?)
             ON CONFLICT(uuid, weapon_id) DO UPDATE SET exp = excluded.exp
         """;
-        try (java.sql.PreparedStatement ps = connection.prepareStatement(sql)) {
-            for (java.util.Map.Entry<String, Long> entry : expMap.entrySet()) {
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            for (Map.Entry<String, Long> entry : expMap.entrySet()) {
                 ps.setString(1, uuid.toString());
                 ps.setString(2, entry.getKey());
                 ps.setLong(3, entry.getValue());
                 ps.addBatch();
             }
             ps.executeBatch();
-            connection.commit();
-        } catch (java.sql.SQLException e) {
-            plugin.getLogger().warning("[WeaponDB] SaveSync error: " + e.getMessage());
+        } catch (SQLException e) {
+            plugin.getLogger().warning("[WeaponDB] SaveAllSync error: " + e.getMessage());
         }
     }
-
-    // ── Close ─────────────────────────────────────────────────────────────────
 
     public void close() {
         try {
