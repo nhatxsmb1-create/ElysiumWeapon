@@ -31,6 +31,7 @@ public class WeaponDatabase {
             File dbFile = new File(plugin.getDataFolder(), "weapon_data.db");
             String url  = "jdbc:sqlite:" + dbFile.getAbsolutePath();
             connection  = DriverManager.getConnection(url);
+            connection.setAutoCommit(true);
 
             createTables();
             plugin.getLogger().info("[WeaponDB] SQLite connected.");
@@ -114,6 +115,30 @@ public class WeaponDatabase {
                 plugin.getLogger().warning("[WeaponDB] SaveAll error: " + e.getMessage());
             }
         });
+    }
+
+    // ── Save Sync (dung khi shutdown) ────────────────────────────────────────────
+
+    /** Save dong bo - KHONG async, dung khi server dang tat */
+    public void saveAllWeaponExpSync(java.util.UUID uuid, java.util.Map<String, Long> expMap) {
+        if (expMap.isEmpty()) return;
+        String sql = """
+            INSERT INTO weapon_mastery (uuid, weapon_id, exp)
+            VALUES (?, ?, ?)
+            ON CONFLICT(uuid, weapon_id) DO UPDATE SET exp = excluded.exp
+        """;
+        try (java.sql.PreparedStatement ps = connection.prepareStatement(sql)) {
+            for (java.util.Map.Entry<String, Long> entry : expMap.entrySet()) {
+                ps.setString(1, uuid.toString());
+                ps.setString(2, entry.getKey());
+                ps.setLong(3, entry.getValue());
+                ps.addBatch();
+            }
+            ps.executeBatch();
+            connection.commit();
+        } catch (java.sql.SQLException e) {
+            plugin.getLogger().warning("[WeaponDB] SaveSync error: " + e.getMessage());
+        }
     }
 
     // ── Close ─────────────────────────────────────────────────────────────────
