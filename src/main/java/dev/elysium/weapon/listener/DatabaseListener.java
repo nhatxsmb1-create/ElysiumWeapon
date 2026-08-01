@@ -12,9 +12,28 @@ import java.util.Map;
 
 public class DatabaseListener implements Listener {
 
+    private org.bukkit.scheduler.BukkitTask autoSaveTask;
+
     private final ElysiumWeapon plugin;
 
     public DatabaseListener(ElysiumWeapon plugin) { this.plugin = plugin; }
+
+    public void startAutoSave() {
+        autoSaveTask = org.bukkit.Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, () -> {
+            for (org.bukkit.entity.Player p : org.bukkit.Bukkit.getOnlinePlayers()) {
+                java.util.UUID uuid = p.getUniqueId();
+                PlayerWeaponState state = plugin.getWeaponManager().getState(p);
+                java.util.Map<String, Long> dirty = state.flushDirty();
+                if (!dirty.isEmpty()) {
+                    plugin.getWeaponDatabase().saveAllWeaponExp(uuid, dirty);
+                }
+            }
+        }, 6000L, 6000L); // moi 5 phut (6000 ticks)
+    }
+
+    public void stopAutoSave() {
+        if (autoSaveTask != null) autoSaveTask.cancel();
+    }
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onJoin(PlayerJoinEvent e) {
