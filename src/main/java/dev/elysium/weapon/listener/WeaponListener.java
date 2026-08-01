@@ -1,8 +1,11 @@
 package dev.elysium.weapon.listener;
 
 import dev.elysium.weapon.ElysiumWeapon;
+import dev.elysium.weapon.skill.custom.FlorentinoSkill;
 import dev.elysium.weapon.weapon.PlayerWeaponState;
 import dev.elysium.weapon.weapon.WeaponData;
+import org.bukkit.entity.LivingEntity;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -11,16 +14,19 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
-import org.bukkit.entity.Player;
 import org.bukkit.inventory.EquipmentSlot;
 
 public class WeaponListener implements Listener {
 
     private final ElysiumWeapon plugin;
+    private final FlorentinoSkill florentinoSkill;
 
-    public WeaponListener(ElysiumWeapon plugin) { this.plugin = plugin; }
+    public WeaponListener(ElysiumWeapon plugin) { 
+        this.plugin = plugin; 
+        this.florentinoSkill = new FlorentinoSkill(plugin);
+    }
 
-    // ── Click Detection ───────────────────────────────────────────────────────
+    // ── Click Detection (Dùng Chiêu) ─────────────────────────────────────────
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onInteract(PlayerInteractEvent e) {
@@ -33,24 +39,34 @@ public class WeaponListener implements Listener {
         boolean shift = player.isSneaking();
         Action  action= e.getAction();
 
-        // Phan loai input
         boolean rightClick = action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK;
         boolean leftClick  = action == Action.LEFT_CLICK_AIR  || action == Action.LEFT_CLICK_BLOCK;
 
+        // 🟢 FIX FLORENTINO: Bắt nút bấm riêng cho Kiếm Florentino
+        if ("FLORENTINO_SWORD".equalsIgnoreCase(weapon.getId())) {
+            if (rightClick && !shift) {
+                e.setCancelled(true);
+                florentinoSkill.throwFlowers(player); // Chiêu 1: Thưởng Hoa (Ném 3 hoa)
+                return;
+            } else if (rightClick && shift) {
+                e.setCancelled(true);
+                florentinoSkill.castUltimate(player); // Ult: Tài Hoa (Ghim + Buff)
+                return;
+            }
+        }
+
+        // Xử lý các vũ khí thường qua SkillEngine
         if (rightClick && !shift) {
-            // P.Phai giu -> Skill 1
             e.setCancelled(true);
             if (weapon.getSkill1() != null) {
                 plugin.getSkillEngine().executeSkill(player, weapon, weapon.getSkill1(), state);
             }
         } else if (rightClick && shift) {
-            // Shift + P.Phai -> Skill 2
             e.setCancelled(true);
             if (weapon.getSkill2() != null) {
                 plugin.getSkillEngine().executeSkill(player, weapon, weapon.getSkill2(), state);
             }
         } else if (leftClick && shift) {
-            // Shift + P.Trai -> Ultimate
             e.setCancelled(true);
             if (weapon.getUltimate() != null) {
                 plugin.getSkillEngine().executeSkill(player, weapon, weapon.getUltimate(), state);
@@ -58,29 +74,46 @@ public class WeaponListener implements Listener {
         }
     }
 
-    // ── Combo Detection (Left Click) ──────────────────────────────────────────
+    // ── Attack & Combo Detection (Chém / Lướt / Thưởng Kiếm) ──────────────────
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onAttack(EntityDamageByEntityEvent e) {
+        // 🟢 FIX FLORENTINO: Bỏ qua nếu sát thương do FlorentinoSkill tự gây ra (Tránh lặp vô tận)
+        if (florentinoSkill.isInternalDamage()) return;
+
         if (!(e.getDamager() instanceof Player player)) return;
+        if (!(e.getEntity() instanceof LivingEntity target)) return;
 
         WeaponData weapon = plugin.getWeaponManager().getHeldWeaponData(player);
         if (weapon == null) return;
 
-        // Override damage voi base damage cua weapon
+        PlayerWeaponState state = plugin.getWeaponManager().getState(player);
+
+        // 🟢 FIX FLORENTINO: Xử lý Lướt Nhặt Hoa & Combo Thưởng Kiếm (C2)
+        if ("FLORENTINO_SWORD".equalsIgnoreCase(weapon.getId())) {
+            // 1. Nếu đang có stack Thưởng Kiếm -> Tung chiêu 2 (Slow / Hất tung / True Dmg)
+            if (florentinoSkill.onHitDuringVortex(player, target, state)) {
+                return;
+            }
+            // 2. Nếu đánh trúng mà có hoa gần đó -> Lướt nhặt hoa + hồi máu + trừ CD C1
+            if (florentinoSkill.handleHitAndDash(player, target, state)) {
+                return;
+            }
+        }
+
+        // Override damage với base damage của weapon
         e.setDamage(weapon.getBaseDamage());
 
-        // Passive xu ly
-        handlePassive(player, weapon, (org.bukkit.entity.LivingEntity) e.getEntity(), e);
+        // Passive xử lý
+        handlePassive(player, weapon, target, e);
 
         // Combo click tracking
         if (weapon.getCombo() == null) return;
-        PlayerWeaponState state  = plugin.getWeaponManager().getState(player);
         int clicks = state.registerClick(weapon.getCombo().getWindowMs());
 
         if (clicks >= weapon.getCombo().getTriggerClicks() && !state.isComboActive()) {
             state.setComboActive(true);
-            e.setCancelled(true); // Cancel normal hit, replace bang combo
+            e.setCancelled(true); // Cancel normal hit, replace bằng combo
             plugin.getSkillEngine().executeCombo(player, weapon, weapon.getCombo(), state);
         }
     }
@@ -88,7 +121,7 @@ public class WeaponListener implements Listener {
     // ── Passive Handling ──────────────────────────────────────────────────────
 
     private void handlePassive(Player player, WeaponData weapon,
-                                org.bukkit.entity.LivingEntity target,
+                                LivingEntity target,
                                 EntityDamageByEntityEvent event) {
         if (weapon.getPassive() == null) return;
 
@@ -97,7 +130,6 @@ public class WeaponListener implements Listener {
         switch (weapon.getPassive().getId()) {
 
             case "MOMENTUM" -> {
-                // Tang 5% dame moi kill, toi da 3 stack
                 int stacks = state.getPassiveStack("MOMENTUM");
                 if (stacks > 0) {
                     event.setDamage(event.getDamage() * (1 + stacks * 0.05));
@@ -105,7 +137,6 @@ public class WeaponListener implements Listener {
             }
 
             case "HEAVY_BLOW" -> {
-                // Moi 4 don danh, don ke tiep Stun
                 int chargeCount = weapon.getPassive().getInt("charge-count", 4);
                 int hitCount    = state.incrementHitCount();
                 if (hitCount >= chargeCount) {
@@ -118,7 +149,6 @@ public class WeaponListener implements Listener {
             }
 
             case "FROSTBITE" -> {
-                // 20% Chill, 3 Chill = Freeze
                 double chillChance = weapon.getPassive().getDouble("chill-chance", 0.2);
                 if (Math.random() < chillChance) {
                     int freezeStacks = state.addPassiveStack("FROSTBITE", 3, 100);
@@ -135,9 +165,6 @@ public class WeaponListener implements Listener {
             }
 
             case "EAGLE_EYE" -> {
-                // Dung yen 1.5s tang dame 40%
-                long standStillTicks = weapon.getPassive().getInt("stand-still-time", 30);
-                // Check velocity gan = 0
                 if (player.getVelocity().lengthSquared() < 0.01) {
                     double bonus = weapon.getPassive().getDouble("damage-bonus", 0.4);
                     event.setDamage(event.getDamage() * (1 + bonus));
@@ -146,17 +173,15 @@ public class WeaponListener implements Listener {
             }
 
             case "LETHAL_TEMPO" -> {
-                // Backstab: danh tu phia sau tang 50%
                 double backstabMult = weapon.getPassive().getDouble("backstab-multiplier", 1.5);
                 double angle = getAngleBehind(player, target);
-                if (angle > 120) { // Phia sau
+                if (angle > 120) {
                     event.setDamage(event.getDamage() * backstabMult);
                     player.sendActionBar(color("&5🗡 Backstab! +50% Dame"));
                 }
             }
 
             case "ISSEN_READY" -> {
-                // Lan danh dac biet sau ISSEN ultimate
                 if (state.getPassiveStack("ISSEN_READY") > 0) {
                     double dmgMult = 6.0;
                     event.setDamage(weapon.getBaseDamage() * dmgMult);
@@ -167,12 +192,12 @@ public class WeaponListener implements Listener {
         }
     }
 
-    // ── Weapon Switch ─────────────────────────────────────────────────────────
+    // ── Weapon Switch & Quit ──────────────────────────────────────────────────
 
     @EventHandler
     public void onWeaponSwitch(PlayerItemHeldEvent e) {
-        Player    player = e.getPlayer();
-        String    newId  = plugin.getWeaponManager().getHeldWeaponId(player);
+        Player player = e.getPlayer();
+        String newId  = plugin.getWeaponManager().getHeldWeaponId(player);
         PlayerWeaponState state = plugin.getWeaponManager().getState(player);
         state.setCurrentWeapon(newId);
         state.resetCombo();
@@ -185,7 +210,7 @@ public class WeaponListener implements Listener {
 
     // ── Utils ─────────────────────────────────────────────────────────────────
 
-    private double getAngleBehind(Player attacker, org.bukkit.entity.LivingEntity target) {
+    private double getAngleBehind(Player attacker, LivingEntity target) {
         org.bukkit.util.Vector toAttacker = attacker.getLocation()
                 .subtract(target.getLocation()).toVector().normalize();
         org.bukkit.util.Vector targetDir  = target.getLocation().getDirection().normalize();
