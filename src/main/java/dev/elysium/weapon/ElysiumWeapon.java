@@ -24,6 +24,7 @@ public class ElysiumWeapon extends JavaPlugin {
     private SkillEngine           skillEngine;
     private WeaponMastery         weaponMastery;
     private CooldownActionbarTask cooldownActionbar;
+    private dev.elysium.weapon.listener.DatabaseListener databaseListener;
 
     @Override
     public void onEnable() {
@@ -51,7 +52,9 @@ public class ElysiumWeapon extends JavaPlugin {
 
         // Listeners
         getServer().getPluginManager().registerEvents(new WeaponListener(this), this);
-        getServer().getPluginManager().registerEvents(new DatabaseListener(this), this);
+        databaseListener = new DatabaseListener(this);
+        getServer().getPluginManager().registerEvents(databaseListener, this);
+        databaseListener.startAutoSave();
         getServer().getPluginManager().registerEvents(new GuiListener(), this);
 
         // Start cooldown actionbar
@@ -64,17 +67,18 @@ public class ElysiumWeapon extends JavaPlugin {
     @Override
     public void onDisable() {
         // Dung actionbar task
-        if (cooldownActionbar != null) cooldownActionbar.stop();
+        if (cooldownActionbar    != null) cooldownActionbar.stop();
+        if (databaseListener   != null) databaseListener.stopAutoSave();
 
-        // Save tat ca player data truoc khi shutdown
+        // Save tat ca player data DONG BO truoc khi shutdown
+        // Phai dung sync, async se bi huy truoc khi chay xong
         for (org.bukkit.entity.Player p : getServer().getOnlinePlayers()) {
-            var state = weaponManager.getState(p);
+            var state  = weaponManager.getState(p);
             var allExp = state.getAllWeaponExp();
             if (!allExp.isEmpty()) {
-                // Save dong bo khi shutdown
-                for (var entry : allExp.entrySet()) {
-                    weaponDatabase.saveWeaponExp(p.getUniqueId(), entry.getKey(), entry.getValue());
-                }
+                weaponDatabase.saveAllWeaponExpSync(p.getUniqueId(), allExp);
+                getLogger().info("[WeaponDB] Saved " + allExp.size()
+                        + " weapon(s) for " + p.getName());
             }
         }
 
