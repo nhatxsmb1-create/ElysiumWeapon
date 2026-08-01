@@ -27,14 +27,7 @@ public class SkillEngine {
 
     public void executeSkill(Player player, WeaponData weapon,
                               WeaponData.SkillData skill, PlayerWeaponState state) {
-        // Kiem tra cooldown TRUOC
-        if (state.isOnCooldown(skill.getId())) {
-            long rem = state.getCooldownRemaining(skill.getId());
-            player.sendMessage(color("&cCooldown: &e" + rem + "s"));
-            return;
-        }
-
-        // Kiem tra mana SAU khi biet skill ready
+        // Kiem tra mana
         int manaCost = getManaCost(weapon, skill);
         try {
             var ep = dev.elysium.core.api.CoreAPI.getPlayer(player);
@@ -42,8 +35,15 @@ public class SkillEngine {
                 player.sendMessage(color("&cKhong du Mana! (" + ep.getMana() + "/" + manaCost + ")"));
                 return;
             }
-            ep.useMana(manaCost);
+            ep.removeMana(manaCost);
         } catch (Exception ignored) {}
+
+        // Kiem tra cooldown
+        if (state.isOnCooldown(skill.getId())) {
+            long rem = state.getCooldownRemaining(skill.getId());
+            player.sendMessage(color("&cCooldown: &e" + rem + "s"));
+            return;
+        }
 
         // Set cooldown
         state.setCooldown(skill.getId(), skill.getCooldown());
