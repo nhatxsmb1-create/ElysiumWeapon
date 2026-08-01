@@ -67,7 +67,7 @@ public class WeaponGui extends ElysiumGui {
                     new ItemBuilder(mat)
                             .name(held.getDisplayName())
                             .lore(lore)
-                            .modelData(held.getModelData())
+                            .customModelData(held.getModelData())
                             .glow()
                             .build(),
                     e -> {
