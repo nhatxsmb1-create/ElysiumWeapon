@@ -25,7 +25,7 @@ public class ElysiumWeaponListener implements Listener {
         this.florentinoSkill = new FlorentinoSkill(plugin);
     }
 
-    // ── Click Detection (Dùng Chiêu & Cập nhật Cooldown ActionBar) ───────────
+    // ── Click Detection (Dùng Chiêu) ──────────────────────────────────────────
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onInteract(PlayerInteractEvent e) {
@@ -41,40 +41,20 @@ public class ElysiumWeaponListener implements Listener {
         boolean rightClick = action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK;
         boolean leftClick  = action == Action.LEFT_CLICK_AIR  || action == Action.LEFT_CLICK_BLOCK;
 
-        // ⚔️ Xử lý riêng cho Kiếm Florentino (Ghi nhận Cooldown lên ActionBar)
+        // ⚔️ Xử lý riêng cho Kiếm Florentino
         if ("FLORENTINO_SWORD".equalsIgnoreCase(weapon.getId())) {
             
             // Chiêu 1: Thưởng Hoa (Phải chuột)
             if (rightClick && !shift) {
                 e.setCancelled(true);
-                
-                // Kiểm tra nếu đang đếm ngược cooldown thì chặn
-                if (weapon.getSkill1() != null && state.isOnCooldown(weapon.getSkill1().getId())) {
-                    return;
-                }
-                
-                // Tung chiêu & Đăng ký cooldown vào ActionBar
-                boolean success = florentinoSkill.throwFlowers(player);
-                if (success && weapon.getSkill1() != null) {
-                    state.setCooldown(weapon.getSkill1().getId(), weapon.getSkill1().getCooldown());
-                }
+                florentinoSkill.throwFlowers(player);
                 return;
             } 
             
             // Ult: Tài Hoa (Shift + Phải chuột)
             else if (rightClick && shift) {
                 e.setCancelled(true);
-                
-                var ultSkill = weapon.getSkill2() != null ? weapon.getSkill2() : weapon.getUltimate();
-                
-                if (ultSkill != null && state.isOnCooldown(ultSkill.getId())) {
-                    return;
-                }
-                
-                boolean success = florentinoSkill.castUltimate(player);
-                if (success && ultSkill != null) {
-                    state.setCooldown(ultSkill.getId(), ultSkill.getCooldown());
-                }
+                florentinoSkill.castUltimate(player);
                 return;
             }
         }
