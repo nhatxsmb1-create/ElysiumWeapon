@@ -13,7 +13,6 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerItemHeldEvent;
-import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.EquipmentSlot;
 
 public class WeaponListener implements Listener {
@@ -37,7 +36,7 @@ public class WeaponListener implements Listener {
 
         PlayerWeaponState state = plugin.getWeaponManager().getState(player);
         boolean shift = player.isSneaking();
-        Action  action= e.getAction();
+        Action action = e.getAction();
 
         boolean rightClick = action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK;
         boolean leftClick  = action == Action.LEFT_CLICK_AIR  || action == Action.LEFT_CLICK_BLOCK;
@@ -46,7 +45,7 @@ public class WeaponListener implements Listener {
         if ("FLORENTINO_SWORD".equalsIgnoreCase(weapon.getId())) {
             if (rightClick && !shift) {
                 e.setCancelled(true);
-                florentinoSkill.throwFlowers(player); // Chiêu 1: Thưởng Hoa (Ném 3 hoa)
+                florentinoSkill.throwFlowers(player); // Chiêu 1: Thưởng Hoa
                 return;
             } else if (rightClick && shift) {
                 e.setCancelled(true);
@@ -78,7 +77,6 @@ public class WeaponListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onAttack(EntityDamageByEntityEvent e) {
-        // Bỏ qua nếu sát thương do FlorentinoSkill tự gây ra
         if (florentinoSkill.isInternalDamage()) return;
 
         if (!(e.getDamager() instanceof Player player)) return;
@@ -89,25 +87,18 @@ public class WeaponListener implements Listener {
 
         PlayerWeaponState state = plugin.getWeaponManager().getState(player);
 
-        // 🟢 FIX VẤN ĐỀ LƯỚT HOA: ƯU TIÊN LƯỚT NHẶT HOA TRƯỚC!
         if ("FLORENTINO_SWORD".equalsIgnoreCase(weapon.getId())) {
-            // 1. Nếu trên sàn có hoa -> BẬT LƯỚT TELEPORT NGAY LẬP TỨC (Lần chém nào có hoa cũng lướt)
             if (florentinoSkill.handleHitAndDash(player, target, state)) {
                 return;
             }
-            // 2. Không có hoa quanh đó -> Mới tung chiêu 2 Thưởng Kiếm (Slow / Hất tung / True Dmg)
             if (florentinoSkill.onHitDuringVortex(player, target, state)) {
                 return;
             }
         }
 
-        // Sát thương mặc định
         e.setDamage(weapon.getBaseDamage());
-
-        // Passive xử lý
         handlePassive(player, weapon, target, e);
 
-        // Combo click tracking
         if (weapon.getCombo() == null) return;
         int clicks = state.registerClick(weapon.getCombo().getWindowMs());
 
@@ -184,7 +175,7 @@ public class WeaponListener implements Listener {
         }
     }
 
-    // ── Weapon Switch & Quit ──────────────────────────────────────────────────
+    // ── Weapon Switch ─────────────────────────────────────────────────────────
 
     @EventHandler
     public void onWeaponSwitch(PlayerItemHeldEvent e) {
@@ -193,11 +184,6 @@ public class WeaponListener implements Listener {
         PlayerWeaponState state = plugin.getWeaponManager().getState(player);
         state.setCurrentWeapon(newId);
         state.resetCombo();
-    }
-
-    @EventHandler
-    public void onQuit(PlayerQuitEvent e) {
-        plugin.getWeaponManager().removeState(e.getPlayer().getUniqueId());
     }
 
     // ── Utils ─────────────────────────────────────────────────────────────────
