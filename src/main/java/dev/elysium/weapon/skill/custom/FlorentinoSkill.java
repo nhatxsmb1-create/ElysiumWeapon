@@ -7,7 +7,6 @@ import org.bukkit.Location;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.entity.ArmorStand;
-import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -47,9 +46,9 @@ public class FlorentinoSkill {
         spawnFlower(player, center.clone().add(dir.clone().multiply(3)).subtract(right.clone().multiply(2.5)));
 
         player.playSound(player.getLocation(), Sound.ENTITY_FLOWER_POT_EAT, 1.0f, 1.5f);
-        player.getWorld().spawnParticle(Particle.SPRING_RIVER, player.getLocation().add(0, 1, 0), 15, 0.3, 0.3, 0.3, 0.1);
+        player.getWorld().spawnParticle(Particle.HEART, player.getLocation().add(0, 1, 0), 15, 0.3, 0.3, 0.3, 0.1);
 
-        return true; // Trả về true để kích hoạt Cooldown trên ActionBar
+        return true;
     }
 
     private void spawnFlower(Player owner, Location targetLoc) {
@@ -86,7 +85,7 @@ public class FlorentinoSkill {
         // Hết 5s thì tắt trạng thái Ult
         Bukkit.getScheduler().runTaskLater(plugin, () -> ultActivePlayers.remove(uuid), 100L);
 
-        return true; // Trả về true để kích hoạt Cooldown Ult trên ActionBar
+        return true;
     }
 
     // ── Xử Lý Lướt & Nhặt Hoa Khi Chém ───────────────────────────────────────
