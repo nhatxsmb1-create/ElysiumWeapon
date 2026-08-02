@@ -13,6 +13,9 @@ import dev.elysium.weapon.skill.SkillEngine;
 import dev.elysium.weapon.util.CooldownActionbarTask;
 import dev.elysium.weapon.weapon.PlayerWeaponState;
 import dev.elysium.weapon.weapon.WeaponManager;
+import org.bukkit.World;
+import org.bukkit.entity.ArmorStand;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -56,6 +59,9 @@ public class ElysiumWeapon extends JavaPlugin {
 
         cooldownActionbar.start();
 
+        // 🚨 TỰ ĐỘNG DỌN DẸP ARMORSTAND KẸT KHI START/RELOAD PLUGIN 🚨
+        cleanupStuckHolograms();
+
         getLogger().info("=== ElysiumWeapon v" + getDescription().getVersion() + " enabled! ===");
         getLogger().info("Weapons: " + weaponManager.getWeaponIds().size());
     }
@@ -63,6 +69,9 @@ public class ElysiumWeapon extends JavaPlugin {
     @Override
     public void onDisable() {
         if (cooldownActionbar != null) cooldownActionbar.stop();
+
+        // Dọn dẹp Hologram kẹt trước khi shutdown
+        cleanupStuckHolograms();
 
         if (weaponDatabase != null) {
             for (Player p : getServer().getOnlinePlayers()) {
@@ -75,6 +84,26 @@ public class ElysiumWeapon extends JavaPlugin {
             weaponDatabase.close();
         }
         getLogger().info("ElysiumWeapon disabled.");
+    }
+
+    /**
+     * Hàm quét và xoá sạch toàn bộ ArmorStand "Marked" bị kẹt trong các World
+     */
+    private void cleanupStuckHolograms() {
+        int removedCount = 0;
+        for (World world : getServer().getWorlds()) {
+            for (Entity entity : world.getEntities()) {
+                if (entity instanceof ArmorStand armorStand) {
+                    if (armorStand.getCustomName() != null && armorStand.getCustomName().contains("Marked")) {
+                        armorStand.remove();
+                        removedCount++;
+                    }
+                }
+            }
+        }
+        if (removedCount > 0) {
+            getLogger().info("[CleanUp] Đã dọn dẹp thành công " + removedCount + " ArmorStand 'Marked' bị kẹt!");
+        }
     }
 
     public static ElysiumWeapon   getInstance()         { return instance; }
