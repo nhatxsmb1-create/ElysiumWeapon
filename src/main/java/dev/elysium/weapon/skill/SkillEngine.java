@@ -34,7 +34,7 @@ public class SkillEngine {
             return;
         }
 
-        // 2. Kiểm tra & Trừ Mana (Chỉ trừ nếu manaCost > 0)
+        // 2. Kiểm tra & Trừ Mana (Chỉ trừ khi manaCost > 0)
         int manaCost = getManaCost(weapon, skill);
         if (manaCost > 0) {
             try {
@@ -56,7 +56,7 @@ public class SkillEngine {
         int finalCooldown = Math.max(1, baseCooldown + cdModifier);
         state.setCooldown(skill.getId(), finalCooldown);
 
-        // 4. Phân luồng xử lý Kỹ năng
+        // 4. Phân luồng xử lý Kỹ năng chuẩn
         switch (skill.getId()) {
             case "BLADE_DASH"     -> executeBladeDash(player, weapon, skill, state);
             case "SPIN_SLASH"     -> executeSpinSlash(player, weapon, skill, state);
@@ -73,14 +73,7 @@ public class SkillEngine {
             case "SHADOW_STEP"    -> executeShadowStep(player, weapon, skill, state);
             case "BLADE_STORM"    -> executeBladeStorm(player, weapon, skill, state);
             case "ISSEN"          -> executeIssen(player, weapon, skill, state);
-            default -> {
-                // Ủy quyền cho Florentino Engine nếu là vũ khí cơ chế đặc biệt
-                if (plugin.getFlorentinoEngine() != null && plugin.getFlorentinoEngine().isFlorentinoSkill(skill.getId())) {
-                    plugin.getFlorentinoEngine().execute(player, skill);
-                } else {
-                    player.sendMessage(color("&cKỹ năng chưa được khai báo: " + skill.getId()));
-                }
-            }
+            default -> player.sendMessage(color("&cKỹ năng chưa được khai báo: " + skill.getId()));
         }
 
         // Hiệu ứng & Âm thanh
