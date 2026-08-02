@@ -1,9 +1,7 @@
 package dev.elysium.weapon.command;
 
 import dev.elysium.weapon.ElysiumWeapon;
-import dev.elysium.weapon.gui.GuiListener;
 import dev.elysium.weapon.gui.WeaponGui;
-import dev.elysium.weapon.mastery.WeaponMastery;
 import dev.elysium.weapon.weapon.WeaponData;
 import dev.elysium.weapon.weapon.PlayerWeaponState;
 import org.bukkit.command.*;
@@ -74,9 +72,7 @@ public class WeaponCommand implements CommandExecutor {
     }
 
     private void openGui(Player player) {
-        WeaponGui gui = new WeaponGui(plugin);
-        GuiListener.register(player.getUniqueId(), gui);
-        gui.open(player);
+        new WeaponGui(plugin).open(player);
     }
 
     private void sendHelp(Player p) {
