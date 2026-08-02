@@ -79,6 +79,10 @@ public class FlorentinoSkill {
                 percentHpTrueDmg *= 1.30;
             }
 
+            // Ap dung Mastery damage bonus cua FLORENTINO_SWORD
+            double masteryBonus = getMasteryDamageBonus(damager);
+            physicalDmg *= masteryBonus;
+
             double targetMaxHp = target.getMaxHealth();
             double trueDamage = (targetMaxHp * (percentHpTrueDmg / 100.0));
             double totalDamage = physicalDmg + trueDamage;
@@ -90,6 +94,15 @@ public class FlorentinoSkill {
             }
         } finally {
             isInternalDamage = false;
+        }
+    }
+
+    /** Lay Mastery damage bonus - SKILL1 slot */
+    private double getMasteryDamageBonus(Player player) {
+        try {
+            return plugin.getWeaponMastery().getDamageBonus(player, "FLORENTINO_SWORD", "SKILL1");
+        } catch (Exception e) {
+            return 1.0;
         }
     }
 
@@ -127,9 +140,11 @@ public class FlorentinoSkill {
             return;
         }
 
-        // Đăng ký Cooldown vào cả 2 key để hiển thị ActionBar chuẩn
-        state.setCooldown(s1Id, SKILL1_CD_S);
-        state.setCooldown(SKILL1_CD, SKILL1_CD_S);
+        // Ap dung Mastery cooldown reduction cho Skill1
+        int cdModifier = plugin.getWeaponMastery().getCooldownModifier(player, "FLORENTINO_SWORD", "SKILL1");
+        int finalCd = Math.max(1, SKILL1_CD_S + cdModifier);
+        state.setCooldown(s1Id, finalCd);
+        state.setCooldown(SKILL1_CD, finalCd);
 
         World world = player.getWorld();
         Location start = player.getEyeLocation();
@@ -307,9 +322,11 @@ public class FlorentinoSkill {
             return;
         }
 
-        // Đăng ký Cooldown Ult lên ActionBar
-        state.setCooldown(ultId, ULT_CD_S);
-        state.setCooldown(ULT_CD_KEY, ULT_CD_S);
+        // Ap dung Mastery cooldown reduction cho Ultimate
+        int ultCdModifier = plugin.getWeaponMastery().getCooldownModifier(player, "FLORENTINO_SWORD", "ULTIMATE");
+        int finalUltCd = Math.max(1, ULT_CD_S + ultCdModifier);
+        state.setCooldown(ultId, finalUltCd);
+        state.setCooldown(ULT_CD_KEY, finalUltCd);
 
         World world = player.getWorld();
         Location start = player.getEyeLocation();
