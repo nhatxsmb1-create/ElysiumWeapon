@@ -109,9 +109,27 @@ public class CooldownActionbarTask {
     }
 
     private String buildComboSlot(WeaponData.ComboData combo, PlayerWeaponState state) {
-        // Hien so clicks hien tai / trigger
-        int clicks  = 0; // state khong expose truc tiep, chi hien label
-        return color("&7[&eCombo x" + combo.getTriggerClicks() + "&7]");
+        int clicks  = state.getComboClicks();
+        int trigger = combo.getTriggerClicks();
+        long lastClick = state.getLastClickTime();
+        boolean expired = System.currentTimeMillis() - lastClick > combo.getWindowMs();
+
+        // Reset visual neu het window
+        if (expired) clicks = 0;
+
+        if (clicks == 0) {
+            return color("&7[&eCombo &7" + trigger + "/" + trigger + "&7]");
+        } else if (clicks >= trigger) {
+            return color("&7[&e&lCOMBO! &6✦&7]");
+        } else {
+            // Hien thi progress: tich vang so da click, xam so con lai
+            StringBuilder bar = new StringBuilder(color("&7[&eCombo "));
+            for (int i = 1; i <= trigger; i++) {
+                bar.append(i <= clicks ? color("&e●") : color("&8●"));
+            }
+            bar.append(color("&7]"));
+            return bar.toString();
+        }
     }
 
     private String buildManaBar(int mana, int maxMana) {
