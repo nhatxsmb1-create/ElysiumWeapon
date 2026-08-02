@@ -184,6 +184,13 @@ public class ElysiumWeaponListener implements Listener {
 
     @EventHandler
     public void onWeaponSwitch(PlayerItemHeldEvent e) {
+        // Refresh lore khi cam vu khi len de hien mastery moi nhat
+        org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            String weaponId = plugin.getWeaponManager().getHeldWeaponId(e.getPlayer());
+            if (weaponId != null) {
+                plugin.getWeaponMastery().refreshWeaponLore(e.getPlayer(), weaponId);
+            }
+        }, 1L);
         Player player = e.getPlayer();
         String newId  = plugin.getWeaponManager().getHeldWeaponId(player);
         PlayerWeaponState state = plugin.getWeaponManager().getState(player);
