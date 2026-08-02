@@ -137,6 +137,14 @@ public class WeaponManager {
         meta.setDisplayName(color(data.getDisplayName()));
         meta.setCustomModelData(data.getModelData());
 
+        // Khong mat do ben, khong the pha huy
+        meta.setUnbreakable(true);
+        meta.addItemFlags(
+            org.bukkit.inventory.ItemFlag.HIDE_UNBREAKABLE,
+            org.bukkit.inventory.ItemFlag.HIDE_ATTRIBUTES,
+            org.bukkit.inventory.ItemFlag.HIDE_ENCHANTS
+        );
+
         // Lore
         List<String> lore = new ArrayList<>();
         lore.add(color("&8" + data.getType().name() + " | " + data.getAffinity().name()));
