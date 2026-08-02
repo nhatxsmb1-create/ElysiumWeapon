@@ -24,12 +24,13 @@ public class WeaponGui extends ElysiumGui {
     }
 
     /**
-     * 🔑 HÀM MỞ GUI CHUẨN: Tự động Đăng ký với GuiListener để CHẶN RÚT ĐỒ
+     * 🔑 HÀM MỞ GUI AN TOÀN: 
+     * Mở inventory trước -> Đợi Bukkit dọn InventoryCloseEvent cũ -> Đăng ký GuiListener ngay sau đó.
      */
     public void open(Player player) {
         build(player);
-        GuiListener.register(player.getUniqueId(), this); // Đăng ký bắt buộc!
         player.openInventory(getInventory());
+        GuiListener.register(player.getUniqueId(), this);
     }
 
     @Override
@@ -81,7 +82,7 @@ public class WeaponGui extends ElysiumGui {
                     e -> {
                         e.setCancelled(true);
                         selectedWeaponId = held.getId();
-                        open(player); // 👈 Sửa ở đây: Dùng open(player) thay vì player.openInventory(...)
+                        open(player); // 👈 Sửa: Dùng open(player)
                     }
             ));
         } else {
@@ -95,6 +96,7 @@ public class WeaponGui extends ElysiumGui {
         if (held != null) {
             PlayerWeaponState state2 = plugin.getWeaponManager().getState(player);
 
+            // Skill 1
             if (held.getSkill1() != null) {
                 long cd = state2.getCooldownRemaining(held.getSkill1().getId());
                 fill(29, new ItemBuilder(Material.BLAZE_POWDER)
@@ -110,6 +112,7 @@ public class WeaponGui extends ElysiumGui {
                         ).build());
             }
 
+            // Skill 2
             if (held.getSkill2() != null) {
                 long cd = state2.getCooldownRemaining(held.getSkill2().getId());
                 fill(31, new ItemBuilder(Material.BLAZE_ROD)
@@ -125,6 +128,7 @@ public class WeaponGui extends ElysiumGui {
                         ).build());
             }
 
+            // Ultimate
             if (held.getUltimate() != null) {
                 long cd = state2.getCooldownRemaining(held.getUltimate().getId());
                 fill(33, new ItemBuilder(Material.NETHER_STAR)
@@ -152,7 +156,7 @@ public class WeaponGui extends ElysiumGui {
                     e -> {
                         e.setCancelled(true);
                         selectedWeaponId = wId;
-                        open(player); // 👈 Sửa ở đây: Dùng open(player)
+                        open(player); // 👈 Sửa: Dùng open(player)
                     }
             ));
         }
@@ -177,6 +181,7 @@ public class WeaponGui extends ElysiumGui {
         long expCur  = totalExp - plugin.getWeaponMastery().getExpForLevel(level);
         double pct   = expNext > 0 ? (expCur / (double) expNext) : 1.0;
 
+        // Header (slot 4)
         fill(4, new ItemBuilder(Material.NETHER_STAR)
                 .name(color(data.getDisplayName() + " &7- Mastery"))
                 .lore(
@@ -186,6 +191,7 @@ public class WeaponGui extends ElysiumGui {
                     buildExpBar(pct)
                 ).glow().build());
 
+        // Unlock milestones (slot 9-44)
         int[] milestones = {5, 10, 15, 20, 25, 30, 35, 40, 45, 50};
         int[] slots      = {19, 20, 21, 22, 23, 24, 25, 28, 29, 30};
 
@@ -210,6 +216,7 @@ public class WeaponGui extends ElysiumGui {
                     .build());
         }
 
+        // EXP sources info (slot 38)
         fill(38, new ItemBuilder(Material.BOOK)
                 .name(color("&6Nguon EXP"))
                 .lore(
@@ -223,6 +230,7 @@ public class WeaponGui extends ElysiumGui {
                     color("&7Chi nhan EXP khi dung vu khi nay!")
                 ).build());
 
+        // Passive info (slot 40)
         if (data.getPassive() != null) {
             fill(40, new ItemBuilder(Material.ENCHANTED_BOOK)
                     .name(color("&6[Noi Tai] " + data.getPassive().getId()))
@@ -234,20 +242,24 @@ public class WeaponGui extends ElysiumGui {
                     ).build());
         }
 
+        // Quay lai (slot 45)
         setButton(45, new GuiButton(
                 new ItemBuilder(Material.ARROW).name(color("&7Quay Lai")).build(),
                 e -> {
                     e.setCancelled(true);
                     selectedWeaponId = null;
-                    open(player); // 👈 Sửa ở đây: Dùng open(player)
+                    open(player); // 👈 Sửa: Dùng open(player)
                 }
         ));
 
+        // Dong (slot 49)
         setButton(49, new GuiButton(
                 new ItemBuilder(Material.BARRIER).name(color("&cDong")).build(),
                 e -> { e.setCancelled(true); player.closeInventory(); }
         ));
     }
+
+    // ── Utils ─────────────────────────────────────────────────────────────────
 
     private String buildExpBar(double pct) {
         int    bars   = 20;
