@@ -7,6 +7,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.entity.Player;
 
 import java.util.HashMap;
@@ -20,28 +21,32 @@ public class GuiListener implements Listener {
     public static void register(UUID uuid, ElysiumGui gui) { openGuis.put(uuid, gui); }
     public static void unregister(UUID uuid)               { openGuis.remove(uuid); }
 
-    @EventHandler(priority = EventPriority.HIGH)
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void onClick(InventoryClickEvent e) {
         if (!(e.getWhoClicked() instanceof Player player)) return;
         ElysiumGui gui = openGuis.get(player.getUniqueId());
         if (gui == null) return;
 
-        // Cancel TAT CA click khi GUI dang mo
-        // ke ca click vao tui do phia duoi
+        // Kiem tra top inventory cua view co phai GUI khong
+        // Dung getTopInventory() thay vi getInventory() de bat ca click o tui do
+        if (!e.getView().getTopInventory().equals(gui.getInventory())) return;
+
+        // Cancel TAT CA click - ca click vao GUI lan tui do ben duoi
         e.setCancelled(true);
 
-        // Chi xu ly click neu dung vao GUI inventory (khong phai tui do)
-        if (e.getInventory().equals(gui.getInventory())) {
+        // Chi goi handleClick neu click vao phan GUI (khong phai tui do)
+        if (e.getClickedInventory() != null
+                && e.getClickedInventory().equals(gui.getInventory())) {
             gui.handleClick(e);
         }
     }
 
-    // Cancel drag event de khong drag item ra ngoai
-    @EventHandler(priority = EventPriority.HIGH)
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void onDrag(InventoryDragEvent e) {
         if (!(e.getWhoClicked() instanceof Player player)) return;
         ElysiumGui gui = openGuis.get(player.getUniqueId());
         if (gui == null) return;
+        if (!e.getView().getTopInventory().equals(gui.getInventory())) return;
         e.setCancelled(true);
     }
 
