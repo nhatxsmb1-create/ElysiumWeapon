@@ -70,6 +70,8 @@ public class PlayerWeaponState {
     public void    resetCombo()              { comboClicks = 0; comboActive = false; }
     public boolean isComboActive()           { return comboActive; }
     public void    setComboActive(boolean v) { comboActive = v; }
+    public int     getComboClicks()          { return comboClicks; }
+    public long    getLastClickTime()        { return lastClickTime; }
 
     // ── Passive Stack ─────────────────────────────────────────────────────────
 
