@@ -63,11 +63,35 @@ public class WeaponMastery {
             handleLevelUp(player, weaponId, oldLevel, curLevel);
         }
 
+        // Cap nhat lore tren item sau moi lan them EXP
+        refreshWeaponLore(player, weaponId);
+
         // Actionbar thong bao EXP
         long expForNext = getExpForNextLevel(curLevel);
         long expInLevel = totalExp - getExpForLevel(curLevel);
         player.sendActionBar(color("&6[" + getWeaponDisplayName(weaponId) + " Lv." + curLevel + "] "
                 + "&e+" + finalExp + " EXP &7| &f" + expInLevel + "/" + expForNext));
+    }
+
+    /** Cap nhat lore tren item weapon trong tay player */
+    public void refreshWeaponLore(Player player, String weaponId) {
+        org.bukkit.inventory.ItemStack held = player.getInventory().getItemInMainHand();
+        if (held == null || !held.hasItemMeta()) return;
+
+        // Kiem tra xem item co phai weapon nay khong
+        var pdc = held.getItemMeta().getPersistentDataContainer();
+        var key = new org.bukkit.NamespacedKey(plugin, dev.elysium.weapon.weapon.WeaponManager.WEAPON_ID_KEY);
+        if (!pdc.has(key)) return;
+        String heldId = pdc.get(key, org.bukkit.persistence.PersistentDataType.STRING);
+        if (!weaponId.equals(heldId)) return;
+
+        // Tao item moi voi lore da cap nhat
+        org.bukkit.inventory.ItemStack updated = plugin.getWeaponManager().createWeaponItemForPlayer(weaponId, player);
+        if (updated == null) return;
+
+        // Giu nguyen slot hien tai
+        int slot = player.getInventory().getHeldItemSlot();
+        player.getInventory().setItem(slot, updated);
     }
 
     private void handleLevelUp(Player player, String weaponId, int oldLevel, int newLevel) {
