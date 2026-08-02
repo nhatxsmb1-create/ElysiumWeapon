@@ -1,38 +1,37 @@
-# ElysiumWeapon - Weapon Definitions
-# Moi vu khi co: passive, skill1, skill2, ultimate, combo
-# Class affinity: class nao dung hieu qua nhat (khong khoa)
+# ElysiumWeapon - Adjusted Mana Costs & Damage Balances
+# Mana Pools Reference: Warrior = 70 | Mage = 200 | Ranger/Assassin = 100
 
 weapons:
 
-  # ── WARRIOR ────────────────────────────────────────────────────────────────
+  # ── WARRIOR (Bể Mana Gốc: 70) ──────────────────────────────────────────────
 
   HOA_KIEM:
     display-name: "&c&lHoa Kiếm"
     type: SWORD
     class-affinity: WARRIOR
     material: IRON_SWORD
-    model-data: 1001          # Custom model data cho resource pack
+    model-data: 1001
     lore:
-      - "&7Kiem kinh dien cua Chien Binh."
-      - "&7Linh hoat – Can bang – Manh me."
-    base-damage: 12.0
-    base-speed: 1.6           # Attack speed modifier
-    mana-cost-skill1: 20
-    mana-cost-skill2: 35
-    mana-cost-ultimate: 60
+      - "&7Kiếm kinh điển của Chiến Binh."
+      - "&7Linh hoạt – Cân bằng – Bền bỉ."
+    base-damage: 15.0
+    base-speed: 1.6
+    mana-cost-skill1: 8        # Lướt chiêu tốn cực ít Mana
+    mana-cost-skill2: 15
+    mana-cost-ultimate: 30
 
     passive:
       id: MOMENTUM
-      description: "Moi lan giet ke thu tang 5% dame trong 5s, chong toi da 3 lan."
+      description: "Mỗi lần giết kẻ thù tăng 5% dame trong 5s, cộng dồn tối đa 3 lần."
       stack-max: 3
-      stack-duration: 100     # ticks
+      stack-duration: 100
 
     skill1:
       id: BLADE_DASH
-      name: "&cLuot Kiem"
-      description: "Lao ve phia truoc, dam 150% dame theo duong thang."
-      cooldown: 8
-      damage-multiplier: 1.5
+      name: "&cLướt Kiếm"
+      description: "Lao về phía trước, đâm 160% dame theo đường thẳng."
+      cooldown: 6
+      damage-multiplier: 1.6
       dash-distance: 6.0
       animation: DASH_FORWARD
       particle: CRIT
@@ -40,10 +39,10 @@ weapons:
 
     skill2:
       id: SPIN_SLASH
-      name: "&cXoan Phong"
-      description: "Quay 360 do, dam 120% dame cho tat ca ke thu xung quanh."
-      cooldown: 12
-      damage-multiplier: 1.2
+      name: "&cXoáy Phong"
+      description: "Quay 360 độ, gây 130% dame cho tất cả kẻ thù xung quanh."
+      cooldown: 9
+      damage-multiplier: 1.3
       radius: 4.0
       animation: SPIN_ATTACK
       particle: SWEEP_ATTACK
@@ -52,8 +51,8 @@ weapons:
     ultimate:
       id: SAKURA_BLOOM
       name: "&c&lSakura Bloom"
-      description: "Tung 5 lua kiem theo hinh hoa, moi lua 200% dame. Moi lua trung them giam 0.5s cooldown."
-      cooldown: 45
+      description: "Tung 5 lưỡi kiếm theo hình hoa, mỗi lưỡi 200% dame."
+      cooldown: 35
       damage-multiplier: 2.0
       projectile-count: 5
       animation: SAKURA_ULTIMATE
@@ -61,12 +60,12 @@ weapons:
       sound: ENTITY_ENDER_DRAGON_FLAP
 
     combo:
-      trigger-clicks: 3       # Click trai 3 lan lien tiep
-      window: 1500            # ms
+      trigger-clicks: 3
+      window: 1500
       id: TRIPLE_SLASH
-      name: "&cBa Kiem Lien Hoan"
-      description: "3 nhat kiem nhanh, lan luot: 80% / 90% / 130% dame."
-      damages: [0.8, 0.9, 1.3]
+      name: "&cBa Kiếm Liên Hoàn"
+      description: "3 nhát kiếm nhanh: 90% / 110% / 150% dame."
+      damages: [0.9, 1.1, 1.5]
       animation: TRIPLE_SLASH
       particle: CRIT
       sound: ENTITY_PLAYER_ATTACK_CRIT
@@ -78,26 +77,26 @@ weapons:
     material: DIAMOND_SWORD
     model-data: 1002
     lore:
-      - "&7Kiem lon, chat luong manh."
-      - "&7Cham – Nang – Huy diet."
-    base-damage: 22.0
-    base-speed: 0.9
-    mana-cost-skill1: 30
-    mana-cost-skill2: 45
-    mana-cost-ultimate: 80
+      - "&7Kiếm lớn trọng lực cao."
+      - "&7Chậm – Đầm – Hủy diệt."
+    base-damage: 26.0
+    base-speed: 0.8
+    mana-cost-skill1: 12
+    mana-cost-skill2: 18
+    mana-cost-ultimate: 35
 
     passive:
       id: HEAVY_BLOW
-      description: "Moi 4 lan danh normal, don ke tiep gay Stun 1.5s."
-      stun-duration: 30       # ticks
+      description: "Mỗi 4 lần đánh thường, đòn tiếp theo gây Stun 1.5s."
+      stun-duration: 30
       charge-count: 4
 
     skill1:
       id: GROUND_SLAM
-      name: "&6Tram Dia"
-      description: "Dap kiem xuong dat, gay AOE dame 200% va knockback manh."
-      cooldown: 10
-      damage-multiplier: 2.0
+      name: "&6Trảm Địa"
+      description: "Đập kiếm xuống đất, gây AOE 240% dame và hất văng."
+      cooldown: 8
+      damage-multiplier: 2.4
       radius: 5.0
       knockback: 4.0
       animation: GROUND_SLAM
@@ -106,13 +105,13 @@ weapons:
 
     skill2:
       id: WAR_CRY
-      name: "&6Chien Ho"
-      description: "Ho lon, tang dame 30% trong 6s. Ke thu trong vong 8m bi Fear 2s."
-      cooldown: 20
-      damage-buff: 0.3
-      buff-duration: 120      # ticks
+      name: "&6Chiến Hống"
+      description: "Hú lớn, tăng 40% dame trong 6s và gây Fear kẻ thù xung quanh."
+      cooldown: 16
+      damage-buff: 0.40
+      buff-duration: 120
       fear-radius: 8.0
-      fear-duration: 40       # ticks
+      fear-duration: 40
       animation: WAR_CRY
       particle: ANGRY_VILLAGER
       sound: ENTITY_RAVAGER_ROAR
@@ -120,9 +119,9 @@ weapons:
     ultimate:
       id: TITAN_FALL
       name: "&6&lTitan Fall"
-      description: "Phong len cao roi dap xuong, gay 400% dame trong vong 8m. Ke thu bi knockup."
-      cooldown: 60
-      damage-multiplier: 4.0
+      description: "Phóng lên cao rồi dập xuống, gây 500% dame rộng 8m."
+      cooldown: 45
+      damage-multiplier: 5.0
       radius: 8.0
       animation: TITAN_FALL
       particle: CLOUD
@@ -132,15 +131,15 @@ weapons:
       trigger-clicks: 2
       window: 2000
       id: HEAVY_COMBO
-      name: "&6Song Truy Kich"
-      description: "2 nhat nang: 150% roi 250% dame. Don thu 2 co 30% Stun."
-      damages: [1.5, 2.5]
-      stun-chance: 0.3
+      name: "&6Song Truy Kích"
+      description: "2 nhát nặng: 180% rồi 280% dame."
+      damages: [1.8, 2.8]
+      stun-chance: 0.35
       animation: HEAVY_COMBO
       particle: EXPLOSION_NORMAL
       sound: ENTITY_PLAYER_ATTACK_KNOCKBACK
 
-  # ── MAGE ───────────────────────────────────────────────────────────────────
+  # ── MAGE (Bể Mana Gốc: 200) ────────────────────────────────────────────────
 
   TRUONG_BANG:
     display-name: "&b&lTrượng Băng"
@@ -149,27 +148,27 @@ weapons:
     material: STICK
     model-data: 2001
     lore:
-      - "&7Truong cua Ba Chua Bang."
-      - "&7Khong ket dong – Khong giet duoc."
-    base-damage: 10.0
+      - "&7Trượng của Bà Chúa Băng Giá."
+      - "&7Khống chế diện rộng – Sát thương phép dồn lớn."
+    base-damage: 14.0
     base-speed: 1.2
-    mana-cost-skill1: 25
-    mana-cost-skill2: 40
-    mana-cost-ultimate: 70
+    mana-cost-skill1: 25       # Xả xấp xỉ 8 lần mới cạn Mana
+    mana-cost-skill2: 45
+    mana-cost-ultimate: 90
 
     passive:
       id: FROSTBITE
-      description: "Moi don danh co 20% gay Chill. 3 lan Chill = Freeze 2s."
+      description: "Đòn đánh có 20% gây Chill. Đủ 3 tích trữ = Freeze 2s."
       chill-chance: 0.2
       freeze-stacks: 3
       freeze-duration: 40
 
     skill1:
       id: ICE_LANCE
-      name: "&bBang Thương"
-      description: "Phong giao bang, xuyen qua ke thu, gay 160% dame va Chill."
-      cooldown: 7
-      damage-multiplier: 1.6
+      name: "&bBăng Thương"
+      description: "Phóng giáo băng xuyên kẻ thù, gây 200% dame và Chill."
+      cooldown: 5
+      damage-multiplier: 2.0
       pierce: true
       animation: PROJECTILE_LAUNCH
       particle: SNOWFLAKE
@@ -177,10 +176,10 @@ weapons:
 
     skill2:
       id: FROST_NOVA
-      name: "&bBang Nova"
-      description: "Phat no bang gia xung quanh, Freeze tat ca ke thu trong 3m trong 2s."
-      cooldown: 15
-      radius: 3.0
+      name: "&bBăng Nova"
+      description: "Phát nổ băng giá, Freeze toàn bộ kẻ thù trong 3.5m."
+      cooldown: 12
+      radius: 3.5
       freeze-duration: 40
       animation: NOVA_EXPLODE
       particle: SNOWFLAKE
@@ -189,12 +188,12 @@ weapons:
     ultimate:
       id: ABSOLUTE_ZERO
       name: "&b&lAbsolute Zero"
-      description: "Tao vung bang 12m trong 5s. Ke thu ben trong bi Slow 70% va mat 80% dame. Cuoi thoi gian no tung, gay 300% dame."
-      cooldown: 60
+      description: "Tạo vùng băng 12m. Kẻ thù bị làm chậm mạnh, sau 5s nổ gây 400% dame."
+      cooldown: 50
       radius: 12.0
-      duration: 100           # ticks
+      duration: 100
       slow-amplifier: 3
-      final-damage-multiplier: 3.0
+      final-damage-multiplier: 4.0
       animation: ABSOLUTE_ZERO
       particle: SNOWFLAKE
       sound: ENTITY_ELDER_GUARDIAN_CURSE
@@ -203,15 +202,15 @@ weapons:
       trigger-clicks: 3
       window: 2000
       id: FROST_BARRAGE
-      name: "&bMua Da Bang"
-      description: "Phong 3 vien da bang lien tiep, moi vien 70% dame va 15% Chill."
-      damages: [0.7, 0.7, 0.7]
+      name: "&bMưa Đá Băng"
+      description: "Phóng 3 viên đá băng, mỗi viên 80% dame."
+      damages: [0.8, 0.8, 0.8]
       chill-chance: 0.15
       animation: BARRAGE
       particle: SNOWFLAKE
       sound: ENTITY_SNOWBALL_THROW
 
-  # ── RANGER ─────────────────────────────────────────────────────────────────
+  # ── RANGER (Bể Mana Gốc: 100) ──────────────────────────────────────────────
 
   CUNG_ELF:
     display-name: "&a&lCung Elf"
@@ -220,26 +219,26 @@ weapons:
     material: BOW
     model-data: 3001
     lore:
-      - "&7Cung linh thieng cua toc Elf."
-      - "&7Chinh xac – Xa – Chet nguoi."
-    base-damage: 14.0
+      - "&7Cung linh thiêng của tộc Elf."
+      - "&7Chính xác – Tầm xa – Bạo kích."
+    base-damage: 16.0
     base-speed: 1.0
-    mana-cost-skill1: 20
-    mana-cost-skill2: 35
-    mana-cost-ultimate: 65
+    mana-cost-skill1: 15
+    mana-cost-skill2: 30
+    mana-cost-ultimate: 50
 
     passive:
       id: EAGLE_EYE
-      description: "Dung yen 1.5s truoc khi ban: tang dame 40%. Di chuyen bi huy."
-      stand-still-time: 30    # ticks
+      description: "Đứng yên 1.5s trước khi bắn: tăng 40% dame đòn tiếp theo."
+      stand-still-time: 30
       damage-bonus: 0.4
 
     skill1:
       id: PIERCING_SHOT
-      name: "&aXuyen Xa"
-      description: "Ban ten xuyen qua tat ca ke thu tren duong thang, moi ke 130% dame."
-      cooldown: 8
-      damage-multiplier: 1.3
+      name: "&aXuyên Xạ"
+      description: "Bắn tên xuyên mục tiêu trên đường thẳng, gây 150% dame."
+      cooldown: 6
+      damage-multiplier: 1.5
       pierce: true
       animation: ARROW_LAUNCH
       particle: CRIT
@@ -247,13 +246,13 @@ weapons:
 
     skill2:
       id: RAIN_OF_ARROWS
-      name: "&aMua Ten"
-      description: "Mua 12 ten xuong 1 vung 6m trong 3s, moi ten 60% dame."
-      cooldown: 18
+      name: "&aMưa Tên"
+      description: "Mưa 12 mũi tên xuống vùng 6m, mỗi mũi tên gây 70% dame."
+      cooldown: 14
       arrow-count: 12
       radius: 6.0
       duration: 60
-      damage-multiplier: 0.6
+      damage-multiplier: 0.7
       animation: ARROW_RAIN
       particle: CRIT
       sound: ENTITY_ARROW_SHOOT
@@ -261,10 +260,10 @@ weapons:
     ultimate:
       id: ELVEN_STORM
       name: "&a&lElven Storm"
-      description: "Tap trung 3s roi ban 1 mui ten sieu manh: 500% dame, xem Armor, co vung no nho."
-      cooldown: 55
-      charge-time: 60         # ticks
-      damage-multiplier: 5.0
+      description: "Tụ lực 3s bắn mũi tên siêu đại: 600% dame, xuyên giáp."
+      cooldown: 45
+      charge-time: 60
+      damage-multiplier: 6.0
       ignore-armor: true
       explosion-radius: 3.0
       animation: CHARGE_SHOT
@@ -276,13 +275,13 @@ weapons:
       window: 3000
       id: RAPID_FIRE
       name: "&aRapid Fire"
-      description: "Ban 4 ten cuc nhanh lien tiep, moi ten 50% dame."
-      damages: [0.5, 0.5, 0.5, 0.5]
+      description: "Bắn 4 tên cực nhanh liên tiếp, mỗi tên 60% dame."
+      damages: [0.6, 0.6, 0.6, 0.6]
       animation: RAPID_ARROWS
       particle: CRIT
       sound: ENTITY_ARROW_SHOOT
 
-  # ── ASSASSIN ───────────────────────────────────────────────────────────────
+  # ── ASSASSIN (Bể Mana Gốc: 100) ────────────────────────────────────────────
 
   KATANA:
     display-name: "&5&lKatana"
@@ -291,36 +290,37 @@ weapons:
     material: GOLDEN_SWORD
     model-data: 4001
     lore:
-      - "&7Kiem Nhat Ban huyen thoai."
-      - "&7Mot nhat – Mot mang."
-    base-damage: 16.0
+      - "&7Kiếm Nhật Bản truyền thuyết."
+      - "&7Một nhát – Một mạng."
+    base-damage: 20.0
     base-speed: 1.8
-    mana-cost-skill1: 25
-    mana-cost-ultimate: 70
+    mana-cost-skill1: 15
+    mana-cost-skill2: 30
+    mana-cost-ultimate: 55
 
     passive:
       id: LETHAL_TEMPO
-      description: "Danh tu phia sau: dame tang 50%. Giet ke thu: hoi phuc 15% HP."
+      description: "Đánh từ phía sau +50% dame. Diệt mục tiêu hồi 15% HP."
       backstab-multiplier: 1.5
       kill-heal-percent: 0.15
 
     skill1:
       id: SHADOW_STEP
-      name: "&5Bo Bong"
-      description: "Dich chuyen tuc thi den phia sau ke thu, danh ngay 180% dame."
-      cooldown: 10
-      damage-multiplier: 1.8
+      name: "&5Bộ Bóng"
+      description: "Biến mất đằng sau kẻ thù, chém ngay 200% dame."
+      cooldown: 7
+      damage-multiplier: 2.0
       animation: SHADOW_TELEPORT
       particle: PORTAL
       sound: ENTITY_ENDERMAN_TELEPORT
 
     skill2:
       id: BLADE_STORM
-      name: "&5Bao Kiem"
-      description: "Xoay tron 5 lan cuc nhanh trong 2s, moi lan 80% dame."
-      cooldown: 16
+      name: "&5Bão Kiếm"
+      description: "Chém xoay 5 lần liên tiếp trong 2s, mỗi lần 90% dame."
+      cooldown: 12
       hit-count: 5
-      damage-multiplier: 0.8
+      damage-multiplier: 0.9
       duration: 40
       animation: BLADE_STORM
       particle: CRIT
@@ -328,13 +328,13 @@ weapons:
 
     ultimate:
       id: ISSEN
-      name: "&5&lIssen - Nhat Quang"
-      description: "Bien mat 1s, toc do +100%. Lan danh ke tiep trong 3s: 600% dame, xuyen giap, khong the do."
-      cooldown: 50
+      name: "&5&lIssen - Nhất Quang"
+      description: "Ẩn thân 1s. Đòn đánh tiếp theo trong 3s gây 650% dame xuyên giáp."
+      cooldown: 40
       invisibility-duration: 20
       speed-boost: 2
       damage-window: 60
-      damage-multiplier: 6.0
+      damage-multiplier: 6.5
       ignore-armor: true
       animation: ISSEN
       particle: SPELL_WITCH
@@ -344,15 +344,15 @@ weapons:
       trigger-clicks: 3
       window: 1200
       id: IAIDO
-      name: "&5Bat Do - Iai"
-      description: "Rut kiem – Chém – Tra kiem. 3 nhát: 60% / 200% / 60%. Nhát thu 2 xuyen giap."
-      damages: [0.6, 2.0, 0.6]
+      name: "&5Bật Đồ - Iai"
+      description: "Rút kiếm - Chém - Tra kiếm: 80% / 250% (Xuyên giáp) / 80%."
+      damages: [0.8, 2.5, 0.8]
       second-hit-ignore-armor: true
       animation: IAIDO_COMBO
       particle: CRIT
       sound: ENTITY_PLAYER_ATTACK_CRIT
 
-  # ── FLORENTINO ─────────────────────────────────────────────────────────────
+  # ── FLORENTINO (Không dùng Mana) ───────────────────────────────────────────
 
   FLORENTINO_SWORD:
     display-name: "&d&lKiếm Florentino"
@@ -364,27 +364,26 @@ weapons:
     hide-flags:
       - HIDE_UNBREAKABLE
       - HIDE_ATTRIBUTES
-    base-damage: 8.0
+    base-damage: 12.0
     base-speed: 1.6
     mana-cost-skill1: 0
     mana-cost-skill2: 0
 
     passive:
       id: FLORENTINO_READY
-      description: "Thưởng Kiếm - Nhặt hoa/20s: Đòn tiếp Lướt + Hồi 8% Máu + -1.5s CD C1"
+      description: "Thưởng Kiếm - Nhặt hoa: Đòn tiếp Lướt + Hồi 8% Máu + -1.5s CD C1"
       cooldown-reduction-skill1: 1.5
 
     skill1:
       id: FLORENTINO_THROW
       name: "Thưởng Hoa"
       description: "Ném 3 hoa xung quanh (Gây Choáng 0.5s)"
-      cooldown: 7
+      cooldown: 6
       mana-cost: 0
 
     skill2:
       id: FLORENTINO_ULT
       name: "Tài Hoa"
       description: "Ghim mục tiêu (+30% Dame, x2 Hồi máu, Miễn khống 14s)"
-      cooldown: 15
+      cooldown: 14
       mana-cost: 0
-      
