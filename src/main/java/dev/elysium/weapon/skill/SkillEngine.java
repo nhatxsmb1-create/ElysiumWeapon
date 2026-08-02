@@ -45,8 +45,12 @@ public class SkillEngine {
             return;
         }
 
-        // Set cooldown
-        state.setCooldown(skill.getId(), skill.getCooldown());
+        // Set cooldown voi Mastery reduction
+        String skillSlot = getSkillSlot(weapon, skill);
+        int baseCooldown  = skill.getCooldown();
+        int cdModifier    = plugin.getWeaponMastery().getCooldownModifier(player, weapon.getId(), skillSlot);
+        int finalCooldown = Math.max(1, baseCooldown + cdModifier);
+        state.setCooldown(skill.getId(), finalCooldown);
 
         // Thuc thi skill theo ID
         switch (skill.getId()) {
@@ -84,15 +88,14 @@ public class SkillEngine {
         double dmgMult  = s.getDouble("damage-multiplier", 1.5);
         Vector dir      = player.getLocation().getDirection().normalize();
 
-        // Dash
         player.setVelocity(dir.multiply(dist * 0.4));
 
-        // Damage sau 0.3s
         new BukkitRunnable() {
             @Override public void run() {
                 for (Entity e : player.getNearbyEntities(2, 2, 2)) {
                     if (!(e instanceof LivingEntity target) || e == player) continue;
-                    dealDamage(player, target, w.getBaseDamage() * dmgMult);
+                    // Ap dung Mastery damage bonus
+                    dealDamageWithMastery(player, target, w.getBaseDamage() * dmgMult, w, "SKILL1");
                 }
                 spawnParticles(player.getLocation(), skill(s), 20, 0.5);
             }
@@ -106,7 +109,7 @@ public class SkillEngine {
 
         for (Entity e : player.getNearbyEntities(radius, radius, radius)) {
             if (!(e instanceof LivingEntity target) || e == player) continue;
-            dealDamage(player, target, w.getBaseDamage() * dmgMult);
+            dealDamageWithMastery(player, target, w.getBaseDamage() * dmgMult, w, "SKILL2");
         }
         spawnRingParticles(player.getLocation(), skill(s), radius);
     }
@@ -147,7 +150,7 @@ public class SkillEngine {
 
         for (Entity e : player.getNearbyEntities(radius, radius, radius)) {
             if (!(e instanceof LivingEntity target) || e == player) continue;
-            dealDamage(player, target, w.getBaseDamage() * dmgMult);
+            dealDamageWithMastery(player, target, w.getBaseDamage() * dmgMult, w, "SKILL1");
             Vector kbVec = target.getLocation().subtract(loc).toVector()
                     .normalize().multiply(kb * 0.3);
             kbVec.setY(0.5);
@@ -195,7 +198,7 @@ public class SkillEngine {
                         Location impact = player.getLocation();
                         for (Entity e : impact.getWorld().getNearbyEntities(impact, radius, radius, radius)) {
                             if (!(e instanceof LivingEntity target) || e == player) continue;
-                            dealDamage(player, target, w.getBaseDamage() * dmgMult);
+                            dealDamageWithMastery(player, target, w.getBaseDamage() * dmgMult, w, "ULTIMATE");
                             // Knockup
                             target.setVelocity(new Vector(
                                     (target.getLocation().getX() - impact.getX()) * 0.3,
@@ -231,7 +234,7 @@ public class SkillEngine {
 
                 for (Entity e : loc.getWorld().getNearbyEntities(loc, 1, 1, 1)) {
                     if (!(e instanceof LivingEntity target) || e == player) continue;
-                    dealDamage(player, target, w.getBaseDamage() * dmgMult);
+                    dealDamageWithMastery(player, target, w.getBaseDamage() * dmgMult, w, "SKILL1");
                     target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 60, 1));
                     if (!pierce) { cancel(); return; }
                 }
@@ -242,12 +245,14 @@ public class SkillEngine {
     private void executeFrostNova(Player player, WeaponData w,
                                    WeaponData.SkillData s, PlayerWeaponState state) {
         double radius    = s.getDouble("radius", 3.0);
+        double dmgMult   = s.getDouble("damage-multiplier", 0.8); // damage khi freeze
         int    freezeTicks = s.getInt("freeze-duration", 40);
 
         for (Entity e : player.getNearbyEntities(radius, radius, radius)) {
             if (!(e instanceof LivingEntity target) || e == player) continue;
+            dealDamageWithMastery(player, target, w.getBaseDamage() * dmgMult, w, "SKILL2");
             target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, freezeTicks, 10));
-            target.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, freezeTicks, -1)); // visual freeze
+            target.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, freezeTicks, -1));
         }
         spawnRingParticles(player.getLocation(), skill(s), radius);
     }
@@ -268,7 +273,7 @@ public class SkillEngine {
                     // Final explosion
                     for (Entity e : center.getWorld().getNearbyEntities(center, radius, radius, radius)) {
                         if (!(e instanceof LivingEntity target) || e == player) continue;
-                        dealDamage(player, target, w.getBaseDamage() * finalDmgMult);
+                        dealDamageWithMastery(player, target, w.getBaseDamage() * finalDmgMult, w, "ULTIMATE");
                         target.removePotionEffect(PotionEffectType.SLOWNESS);
                     }
                     spawnRingParticles(center, skill(s), radius);
@@ -372,7 +377,7 @@ public class SkillEngine {
         player.teleport(behind);
 
         // Backstab
-        dealDamage(player, target, w.getBaseDamage() * dmgMult * 1.5); // backstab bonus
+        dealDamageWithMastery(player, target, w.getBaseDamage() * dmgMult * 1.5, w, "SKILL1"); // backstab bonus
         spawnParticles(target.getLocation(), skill(s), 20, 0.5);
     }
 
@@ -388,7 +393,7 @@ public class SkillEngine {
                 if (count++ >= hits) { cancel(); return; }
                 for (Entity e : player.getNearbyEntities(2.5, 2.5, 2.5)) {
                     if (!(e instanceof LivingEntity target) || e == player) continue;
-                    dealDamage(player, target, w.getBaseDamage() * dmgMult);
+                    dealDamageWithMastery(player, target, w.getBaseDamage() * dmgMult, w, "SKILL2");
                 }
                 spawnParticles(player.getLocation(), skill(s), 10, 1.0);
             }
@@ -429,7 +434,9 @@ public class SkillEngine {
                     if (combo.getId().equals("IAIDO") && idx == 1)
                         ignoreArmor = combo.getBoolean("second-hit-ignore-armor", false);
 
-                    double finalDmg = weapon.getBaseDamage() * dmgMult;
+                    // Combo dung SKILL1 slot bonus
+                    double masteryBonus = plugin.getWeaponMastery().getDamageBonus(player, weapon.getId(), "SKILL1");
+                    double finalDmg = weapon.getBaseDamage() * dmgMult * masteryBonus;
                     if (ignoreArmor) dealDamageIgnoreArmor(player, target, finalDmg);
                     else             dealDamage(player, target, finalDmg);
 
@@ -461,6 +468,13 @@ public class SkillEngine {
         target.damage(damage, attacker);
     }
 
+    /** dealDamage co tinh Mastery bonus */
+    public void dealDamageWithMastery(Player attacker, LivingEntity target,
+                                      double damage, WeaponData weapon, String skillSlot) {
+        double bonus = plugin.getWeaponMastery().getDamageBonus(attacker, weapon.getId(), skillSlot);
+        target.damage(damage * bonus, attacker);
+    }
+
     public void dealDamageIgnoreArmor(Player attacker, LivingEntity target, double damage) {
         target.setHealth(Math.max(0, target.getHealth() - damage));
     }
@@ -474,6 +488,13 @@ public class SkillEngine {
             if (d < minDist) { minDist = d; closest = le; }
         }
         return closest;
+    }
+
+    private String getSkillSlot(WeaponData w, WeaponData.SkillData s) {
+        if (s == w.getSkill1())   return "SKILL1";
+        if (s == w.getSkill2())   return "SKILL2";
+        if (s == w.getUltimate()) return "ULTIMATE";
+        return "SKILL1";
     }
 
     private int getManaCost(WeaponData w, WeaponData.SkillData s) {
