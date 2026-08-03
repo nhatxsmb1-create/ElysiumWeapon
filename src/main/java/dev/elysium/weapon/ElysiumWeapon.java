@@ -8,9 +8,10 @@ import dev.elysium.weapon.database.WeaponDatabase;
 import dev.elysium.weapon.gui.GuiListener;
 import dev.elysium.weapon.listener.ElysiumDatabaseListener;
 import dev.elysium.weapon.listener.ElysiumWeaponListener;
-import dev.elysium.weapon.listener.FlorentinoListener; // 👈 Thêm import Listener mới
+import dev.elysium.weapon.listener.FlorentinoListener;
 import dev.elysium.weapon.mastery.WeaponMastery;
 import dev.elysium.weapon.skill.SkillEngine;
+import dev.elysium.weapon.skill.custom.FlorentinoSkill; // 👈 Thêm Import này
 import dev.elysium.weapon.util.CooldownActionbarTask;
 import dev.elysium.weapon.weapon.PlayerWeaponState;
 import dev.elysium.weapon.weapon.WeaponManager;
@@ -32,6 +33,7 @@ public class ElysiumWeapon extends JavaPlugin {
     private SkillEngine           skillEngine;
     private WeaponMastery         weaponMastery;
     private CooldownActionbarTask cooldownActionbar;
+    private FlorentinoSkill       florentinoSkill; // 👈 Khai báo FlorentinoSkill
 
     @Override
     public void onEnable() {
@@ -48,6 +50,7 @@ public class ElysiumWeapon extends JavaPlugin {
         skillEngine       = new SkillEngine(this, animationEngine);
         weaponMastery     = new WeaponMastery(this);
         cooldownActionbar = new CooldownActionbarTask(this);
+        florentinoSkill   = new FlorentinoSkill(this); // 👈 Khởi tạo FlorentinoSkill
 
         WeaponAPI.init(this);
 
@@ -55,13 +58,12 @@ public class ElysiumWeapon extends JavaPlugin {
         getCommand("weaponadmin").setExecutor(new WeaponAdminCommand(this));
 
         getServer().getPluginManager().registerEvents(new ElysiumWeaponListener(this), this);
-        getServer().getPluginManager().registerEvents(new FlorentinoListener(this), this); // 👈 Đăng ký FlorentinoListener
+        getServer().getPluginManager().registerEvents(new FlorentinoListener(this, florentinoSkill), this); // 👈 Truyền 2 tham số
         getServer().getPluginManager().registerEvents(new ElysiumDatabaseListener(this), this);
         getServer().getPluginManager().registerEvents(new GuiListener(), this);
 
         cooldownActionbar.start();
 
-        // 🚨 TỰ ĐỘNG DỌN DẸP ARMORSTAND KẸT KHI START/RELOAD PLUGIN 🚨
         cleanupStuckHolograms();
 
         getLogger().info("=== ElysiumWeapon v" + getDescription().getVersion() + " enabled! ===");
@@ -72,7 +74,6 @@ public class ElysiumWeapon extends JavaPlugin {
     public void onDisable() {
         if (cooldownActionbar != null) cooldownActionbar.stop();
 
-        // Dọn dẹp Hologram kẹt trước khi shutdown
         cleanupStuckHolograms();
 
         if (weaponDatabase != null) {
@@ -88,9 +89,6 @@ public class ElysiumWeapon extends JavaPlugin {
         getLogger().info("ElysiumWeapon disabled.");
     }
 
-    /**
-     * Hàm quét và xoá sạch toàn bộ ArmorStand "Marked" bị kẹt trong các World
-     */
     private void cleanupStuckHolograms() {
         int removedCount = 0;
         for (World world : getServer().getWorlds()) {
@@ -115,4 +113,5 @@ public class ElysiumWeapon extends JavaPlugin {
     public SkillEngine            getSkillEngine()      { return skillEngine; }
     public WeaponMastery          getWeaponMastery()    { return weaponMastery; }
     public CooldownActionbarTask  getCooldownActionbar(){ return cooldownActionbar; }
+    public FlorentinoSkill        getFlorentinoSkill()  { return florentinoSkill; }
 }
