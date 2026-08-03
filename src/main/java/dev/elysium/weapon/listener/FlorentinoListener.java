@@ -4,8 +4,11 @@ import dev.elysium.weapon.ElysiumWeapon;
 import dev.elysium.weapon.skill.custom.FlorentinoSkill;
 import dev.elysium.weapon.weapon.PlayerWeaponState;
 import dev.elysium.weapon.weapon.WeaponData;
+import org.bukkit.Particle;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Projectile;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -67,7 +70,7 @@ public class FlorentinoListener implements Listener {
     public void onAttack(EntityDamageByEntityEvent e) {
         if (florentinoSkill.isInternalDamage()) return;
 
-        // Xử lý Florentino đi gây sát thương
+        // 1. Florentino chủ động tấn công
         if (e.getDamager() instanceof Player player) {
             WeaponData weapon = plugin.getWeaponManager().getHeldWeaponData(player);
             if (weapon != null && "FLORENTINO_SWORD".equalsIgnoreCase(weapon.getId())) {
@@ -83,13 +86,29 @@ public class FlorentinoListener implements Listener {
             }
         }
 
-        // Xử lý Florentino bị tấn công khi đang bật Miễn Khống (Anti-Knockback)
+        // 2. Florentino bị tấn công khi bật Ultimate (Bá Thể + Anti-Knockback + Kháng 40% Dame từ mục tiêu ngoài)
         if (e.getEntity() instanceof Player victim) {
             PlayerWeaponState state = plugin.getWeaponManager().getState(victim);
             if (state != null && state.getPassiveStack(FlorentinoSkill.CC_IMMUNE_BUFF) > 0) {
+                
+                // Triệt tiêu hất văng (Anti-Knockback)
                 plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
                     victim.setVelocity(victim.getVelocity().setX(0).setZ(0));
                 }, 1L);
+
+                // Xác định kẻ tấn công gốc (Xử lý cả mũi tên/đạn ném)
+                Entity attacker = e.getDamager();
+                if (attacker instanceof Projectile proj && proj.getShooter() instanceof Entity shooter) {
+                    attacker = (Entity) shooter;
+                }
+
+                // Nếu nguồn sát thương KHÔNG PHẢI mục tiêu bị ghim Mark -> Giảm 40% sát thương
+                if (!florentinoSkill.isMarked(victim, attacker)) {
+                    double reducedDamage = e.getDamage() * 0.60;
+                    e.setDamage(reducedDamage);
+                    
+                    victim.getWorld().spawnParticle(Particle.ENCHANTED_HIT, victim.getLocation().add(0, 1.2, 0), 6, 0.2, 0.3, 0.2, 0.1);
+                }
             }
         }
     }
