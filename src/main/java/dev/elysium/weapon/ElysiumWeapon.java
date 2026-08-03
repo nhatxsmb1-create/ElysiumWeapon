@@ -32,6 +32,7 @@ public class ElysiumWeapon extends JavaPlugin {
     private SkillEngine           skillEngine;
     private WeaponMastery         weaponMastery;
     private CooldownActionbarTask cooldownActionbar;
+    private FlorentinoListener    florentinoListener;
 
     @Override
     public void onEnable() {
@@ -54,8 +55,10 @@ public class ElysiumWeapon extends JavaPlugin {
         getCommand("weapon").setExecutor(new WeaponCommand(this));
         getCommand("weaponadmin").setExecutor(new WeaponAdminCommand(this));
 
+        florentinoListener = new FlorentinoListener(this);
+
         getServer().getPluginManager().registerEvents(new ElysiumWeaponListener(this), this);
-        getServer().getPluginManager().registerEvents(new FlorentinoListener(this), this);
+        getServer().getPluginManager().registerEvents(florentinoListener, this);
         getServer().getPluginManager().registerEvents(new ElysiumDatabaseListener(this), this);
         getServer().getPluginManager().registerEvents(new GuiListener(), this);
 
@@ -70,6 +73,10 @@ public class ElysiumWeapon extends JavaPlugin {
     @Override
     public void onDisable() {
         if (cooldownActionbar != null) cooldownActionbar.stop();
+
+        if (florentinoListener != null && florentinoListener.getFlorentinoSkill() != null) {
+            florentinoListener.getFlorentinoSkill().cleanupAll();
+        }
 
         cleanupStuckHolograms();
 
@@ -99,7 +106,7 @@ public class ElysiumWeapon extends JavaPlugin {
             }
         }
         if (removedCount > 0) {
-            getLogger().info("[CleanUp] Đã dọn dẹp thành công " + removedCount + " ArmorStand 'Marked' bị kẹt!");
+            getLogger().info("[CleanUp] Đã dọn dẹp " + removedCount + " ArmorStand 'Marked'!");
         }
     }
 
