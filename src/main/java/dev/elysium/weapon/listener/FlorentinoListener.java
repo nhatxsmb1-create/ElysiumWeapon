@@ -12,6 +12,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.EquipmentSlot;
 
 public class FlorentinoListener implements Listener {
@@ -24,7 +25,11 @@ public class FlorentinoListener implements Listener {
         this.florentinoSkill = new FlorentinoSkill(plugin);
     }
 
-    // ── Sử dụng chiêu & Lướt kiếm ──────────────────────────────────────────
+    public FlorentinoSkill getFlorentinoSkill() {
+        return florentinoSkill;
+    }
+
+    // ── XỬ LÝ CLICK SỬ DỤNG KỸ NĂNG & LƯỚT ─────────────────────────────────
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onInteract(PlayerInteractEvent e) {
@@ -37,25 +42,25 @@ public class FlorentinoListener implements Listener {
         Action action = e.getAction();
         boolean shift = player.isSneaking();
 
-        // 1. LEFT CLICK (Chém gió/Không khí) -> Nếu có buff nhặt hoa thì kích hoạt Lướt Đánh Cường Hóa ngay!
+        // Left Click (Đánh gió / Đánh khối) -> Kiểm tra & Kích hoạt Lướt Kiếm Cường Hóa
         if (action == Action.LEFT_CLICK_AIR || action == Action.LEFT_CLICK_BLOCK) {
             florentinoSkill.executeDashAttack(player, state);
             return;
         }
 
-        // 2. RIGHT CLICK -> Tung chiêu
+        // Right Click -> Kích hoạt Skill 1 hoặc Ultimate
         boolean rightClick = action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK;
         if (rightClick) {
             e.setCancelled(true);
             if (!shift) {
-                florentinoSkill.throwFlowers(player); // Chiêu 1
+                florentinoSkill.throwFlowers(player);
             } else {
-                florentinoSkill.castUltimate(player); // Ulti
+                florentinoSkill.castUltimate(player);
             }
         }
     }
 
-    // ── Xử lý đòn đánh & Combo Thưởng Kiếm ─────────────────────────────────
+    // ── XỬ LÝ TÁC ĐỘNG VÀO QUÁI / PLAYER ─────────────────────────────────────
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onAttack(EntityDamageByEntityEvent e) {
@@ -69,13 +74,20 @@ public class FlorentinoListener implements Listener {
 
         PlayerWeaponState state = plugin.getWeaponManager().getState(player);
 
-        // Nếu vừa nhặt hoa xong mà đập thẳng vào quái -> Ưu tiên Lướt Đánh Cường Hóa
+        // Nếu có buff Bước Hoa từ việc nhặt hoa -> Thực hiện Đánh Lướt Cường Hóa thẳng vào mục tiêu
         if (florentinoSkill.executeDashAttack(player, state)) {
             e.setCancelled(true);
             return;
         }
 
-        // Chiêu 2: Thưởng kiếm Combo 3 nhịp
+        // Ngược lại, kích hoạt đòn chém Thưởng Kiếm (Skill 2)
         florentinoSkill.triggerVortexCombo(player, target);
+    }
+
+    // ── DỌN DẸP BỘ NHỚ KHI NGUỜI CHƠI THOÁT ──────────────────────────────────
+
+    @EventHandler
+    public void onQuit(PlayerQuitEvent e) {
+        florentinoSkill.clearPlayerData(e.getPlayer().getUniqueId());
     }
 }
