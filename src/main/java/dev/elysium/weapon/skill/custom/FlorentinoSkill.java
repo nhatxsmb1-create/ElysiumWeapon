@@ -17,21 +17,19 @@ public class FlorentinoSkill {
 
     private final ElysiumWeapon plugin;
 
-    // ── Keys & Config ────────────────────────────────────────────────────────
     public static final String PASSIVE_KEY   = "FLORENTINO_READY";
     public static final String CD_KEY        = "FLORENTINO_PASSIVE_CD";
 
     public static final String SKILL1_CD     = "FLORENTINO_SKILL1_CD";
-    public static final int    SKILL1_CD_S   = 7;    // giây
+    public static final int    SKILL1_CD_S   = 7;
 
     public static final String BUOC_HOA_KEY  = "FLORENTINO_BUOC_HOA";
     public static final String VORTEX_KEY    = "FLORENTINO_VORTEX";
 
     public static final String ULT_CD_KEY    = "FLORENTINO_ULT_CD";
-    public static final int    ULT_CD_S      = 15;   // giây
-    public static final int    ULT_DURATION  = 280;  // 14 giây
+    public static final int    ULT_CD_S      = 15;
+    public static final int    ULT_DURATION  = 280;
 
-    // Cooldown lướt hoa (250ms)
     private static final long DASH_COOLDOWN_MS = 250L;
     private final Map<UUID, Long> lastDashTimes = new HashMap<>();
 
@@ -53,7 +51,7 @@ public class FlorentinoSkill {
     private boolean isValidTarget(Player caster, Entity entity) {
         if (!(entity instanceof LivingEntity target) || entity.equals(caster)) return false;
         if (target.isDead() || !target.isValid()) return false;
-        if (target.hasMetadata("NPC")) return false; // Bỏ qua NPC
+        if (target.hasMetadata("NPC")) return false;
         
         if (target instanceof Player p) {
             return p.getGameMode() == GameMode.SURVIVAL || p.getGameMode() == GameMode.ADVENTURE;
@@ -78,12 +76,11 @@ public class FlorentinoSkill {
         return ULT_CD_KEY;
     }
 
-    // ── CƠ CHẾ SÁT THƯƠNG MỚI: DIRECT HP OVERRIDE (CHỐNG NUỐT ĐÒN 100%) ─────────
+    // ── CƠ CHẾ SÁT THƯƠNG TRỰC TIẾP (DIRECT HP OVERRIDE) ─────────────────────
 
     private void dealSkillDamage(LivingEntity target, Player damager, double physicalDmg, double percentHpTrueDmg) {
         isInternalDamage = true;
         try {
-            // 1. Tính toán sát thương theo Mastery và Trạng thái Marked
             if (isMarked(damager, target)) {
                 physicalDmg *= 1.30;
                 percentHpTrueDmg *= 1.30;
@@ -96,36 +93,24 @@ public class FlorentinoSkill {
             double trueDamage = (targetMaxHp * (percentHpTrueDmg / 100.0));
             double totalDamage = physicalDmg + trueDamage;
 
-            // 2. Lấy HP hiện tại và trừ trực tiếp (Bỏ qua 100% bất tử NMS / Paper)
             double currentHp = target.getHealth();
             double finalHp = currentHp - totalDamage;
 
-            // 3. Hiệu ứng giật đỏ người (Mô phỏng đòn đánh thật)
+            // Hiệu ứng giật đỏ chuẩn như va chạm thật
             target.playEffect(EntityEffect.HURT);
 
-            // 4. Xử lý trừ máu & ghi nhận Kill / Aggro cho Server
             if (finalHp <= 0) {
-                // Nếu đòn đánh kết liễu target -> Gọi dame lớn để Server ghi nhận Kill chính xác cho Damager
                 target.setNoDamageTicks(0);
                 target.damage(999999.0, damager);
             } else {
-                // Trừ máu trực tiếp
                 target.setHealth(Math.max(0.1, finalHp));
-
-                // Gây 1 lượng dame giả lập cực nhỏ để server ghi nhận Combat Tag & Aggro Mob
                 target.setNoDamageTicks(0);
                 target.damage(0.0001, damager);
                 target.setNoDamageTicks(0);
             }
 
-            // 5. Hiệu ứng True Damage
             if (percentHpTrueDmg > 0) {
-                target.getWorld().spawnParticle(
-                    Particle.DAMAGE_INDICATOR, 
-                    target.getLocation().add(0, 1.2, 0), 
-                    (int) Math.max(1, percentHpTrueDmg), 
-                    0.2, 0.2, 0.2, 0.1
-                );
+                target.getWorld().spawnParticle(Particle.DAMAGE_INDICATOR, target.getLocation().add(0, 1.2, 0), (int) Math.max(1, percentHpTrueDmg), 0.2, 0.2, 0.2, 0.1);
             }
         } finally {
             isInternalDamage = false;
@@ -144,8 +129,6 @@ public class FlorentinoSkill {
         dealSkillDamage(target, damager, physicalDmg, 0.0);
     }
 
-    // ── Passive Timer ────────────────────────────────────────────────────────
-
     private void startPassiveTimer() {
         new BukkitRunnable() {
             @Override public void run() {
@@ -162,8 +145,6 @@ public class FlorentinoSkill {
             }
         }.runTaskTimer(plugin, 400L, 400L);
     }
-
-    // ── Skill 1: Ném hoa ─────────────────────────────────────────────────────
 
     public void throwFlowers(Player player) {
         PlayerWeaponState state = plugin.getWeaponManager().getState(player);
@@ -214,8 +195,6 @@ public class FlorentinoSkill {
         }.runTaskTimer(plugin, 0, 1);
     }
 
-    // ── Lướt nhặt hoa ────────────────────────────────────────────────────────
-
     public boolean handleHitAndDash(Player player, LivingEntity target, PlayerWeaponState state) {
         long now = System.currentTimeMillis();
         long lastDash = lastDashTimes.getOrDefault(player.getUniqueId(), 0L);
@@ -263,8 +242,6 @@ public class FlorentinoSkill {
         pickupFlower(player, target, flower, state);
     }
 
-    // ── Nhặt hoa ──────────────────────────────────────────────────────────────
-
     private void pickupFlower(Player player, LivingEntity target, FlowerEntry entry, PlayerWeaponState state) {
         removeFlowerById(player.getWorld(), entry.entityId);
 
@@ -294,8 +271,6 @@ public class FlorentinoSkill {
         player.sendActionBar(color("&d✦ &fNhặt hoa! &a+" + (int)healAmount + " HP &b[-1.5s C1]"));
         player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 0.6f, 1.6f);
     }
-
-    // ── Chiêu 2 (Thưởng Kiếm) ──────────────────────────────────────────────────
 
     public boolean onHitDuringVortex(Player player, LivingEntity target, PlayerWeaponState state) {
         int stacks = state.getPassiveStack(VORTEX_KEY);
@@ -344,8 +319,6 @@ public class FlorentinoSkill {
 
         return true;
     }
-
-    // ── Ultimate: Tài Hoa ─────────────────────────────────────────────────────
 
     public void castUltimate(Player player) {
         PlayerWeaponState state = plugin.getWeaponManager().getState(player);
@@ -446,8 +419,6 @@ public class FlorentinoSkill {
             }
         }.runTaskTimer(plugin, 0L, 2L);
     }
-
-    // ── Helper ───────────────────────────────────────────────────────────────
 
     private void spawnFlowersAt(Location center, World world, Player player) {
         for (int i = 0; i < 3; i++) {
