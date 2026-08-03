@@ -30,7 +30,7 @@ public class SkillEngine {
         // 1. Kiểm tra Cooldown trước
         if (state.isOnCooldown(skill.getId())) {
             long rem = state.getCooldownRemaining(skill.getId());
-            player.sendMessage(color("&cKỹ năng đang hồi: &e" + rem + "s"));
+            // Cooldown hien tren actionbar, khong can sendMessage
             return;
         }
 
@@ -40,7 +40,7 @@ public class SkillEngine {
             try {
                 var ep = dev.elysium.core.api.CoreAPI.getPlayer(player);
                 if (ep == null || ep.getMana() < manaCost) {
-                    player.sendMessage(color("&cKhông đủ Mana! (" + (ep != null ? ep.getMana() : 0) + "/" + manaCost + ")"));
+                    player.sendActionBar(color("&c✗ Không đủ Mana! &7(" + (ep != null ? ep.getMana() : 0) + "/" + manaCost + ")"));
                     return;
                 }
                 ep.useMana(manaCost);
