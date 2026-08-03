@@ -406,7 +406,7 @@ public class FlorentinoSkill {
             }
         }.runTaskTimer(plugin, 0L, 2L);
 
-        // Runnable 2: Hào Quang Miễn Khống Chế (Visual Aura)
+        // Runnable 2: Hào Quang Miễn Khống Chế (Visual Aura - Đã sửa Particle.WITCH)
         new BukkitRunnable() {
             int ticks = 0;
             @Override
@@ -417,7 +417,7 @@ public class FlorentinoSkill {
                     return;
                 }
                 Location pLoc = player.getLocation().add(0, 1.0, 0);
-                world.spawnParticle(Particle.SPELL_WITCH, pLoc, 4, 0.3, 0.6, 0.3, 0.02);
+                world.spawnParticle(Particle.WITCH, pLoc, 4, 0.3, 0.6, 0.3, 0.02);
                 world.spawnParticle(Particle.CHERRY_LEAVES, pLoc, 2, 0.2, 0.4, 0.2, 0.01);
             }
         }.runTaskTimer(plugin, 0L, 3L);
