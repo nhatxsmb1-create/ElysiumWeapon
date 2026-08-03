@@ -18,12 +18,13 @@ public class FlorentinoSkill {
     private final ElysiumWeapon plugin;
 
     public static final String BUOC_HOA_BUFF   = "FLORENTINO_BUOC_HOA_BUFF";
+    public static final String CC_IMMUNE_BUFF  = "FLORENTINO_CC_IMMUNE";
     public static final String SKILL1_CD       = "FLORENTINO_SKILL1_CD";
     public static final int    SKILL1_CD_S     = 7;
 
     public static final String ULT_CD_KEY      = "FLORENTINO_ULT_CD";
     public static final int    ULT_CD_S        = 15;
-    public static final int    ULT_DURATION    = 280; // 14s
+    public static final int    ULT_DURATION    = 280; // 14s (280 ticks)
 
     private final Map<UUID, Set<UUID>> markedTargets = new HashMap<>();
     private final Map<UUID, List<FlowerEntry>> flowerMap = new HashMap<>();
@@ -86,7 +87,6 @@ public class FlorentinoSkill {
             double trueDamage = (targetMaxHp * (percentHpTrueDmg / 100.0));
             double totalDamage = physicalDmg + trueDamage;
 
-            // Override hoàn toàn noDamageTicks để chống nuốt đòn combo
             target.setNoDamageTicks(0);
             target.damage(totalDamage, damager);
 
@@ -132,7 +132,7 @@ public class FlorentinoSkill {
 
                         while (iterator.hasNext()) {
                             FlowerEntry flower = iterator.next();
-                            if (flower.location.distanceSquared(pLoc) <= 5.5) { // ~2.3m
+                            if (flower.location.distanceSquared(pLoc) <= 6.25) { // Bán kính ~2.5m
                                 onPickupFlower(player, flower, state);
                                 removeFlowerEntity(world, flower.entityId);
                                 iterator.remove();
@@ -145,7 +145,7 @@ public class FlorentinoSkill {
     }
 
     private void onPickupFlower(Player player, FlowerEntry flower, PlayerWeaponState state) {
-        state.addPassiveStack(BUOC_HOA_BUFF, 1, 100); // 5 giây sẵn sàng lướt
+        state.addPassiveStack(BUOC_HOA_BUFF, 1, 100); // 5s sẵn sàng lướt
 
         double maxHp = player.getMaxHealth();
         double healAmount = maxHp * 0.08;
@@ -164,7 +164,7 @@ public class FlorentinoSkill {
         player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 0.6f, 1.6f);
     }
 
-    // ── ĐÒN LƯỚT ĐÁNH CƯỜNG HÓA (ĐÃ FIX KHÔNG BỊ TRÙNG HIT SÁT THƯƠNG) ────────
+    // ── ĐÒN LƯỚT ĐÁNH CƯỜNG HÓA ───────────────────────────────────────────────
 
     public boolean executeDashAttack(Player player, PlayerWeaponState state) {
         if (state.getPassiveStack(BUOC_HOA_BUFF) <= 0) return false;
@@ -182,7 +182,6 @@ public class FlorentinoSkill {
         world.spawnParticle(Particle.SWEEP_ATTACK, from.clone().add(dir.clone().multiply(1.5)).add(0, 1, 0), 1);
         world.spawnParticle(Particle.CHERRY_LEAVES, from.clone().add(0, 1, 0), 12, 0.4, 0.4, 0.4, 0.05);
 
-        // Set theo dõi các mục tiêu đã bị đánh trúng trong lần lướt này
         Set<UUID> hitTargetsThisDash = new HashSet<>();
 
         new BukkitRunnable() {
@@ -206,14 +205,14 @@ public class FlorentinoSkill {
         return true;
     }
 
-    // ── SKILL 1: NÉM HOA ─────────────────────────────────────────────────────
+    // ── SKILL 1: THƯỞNG HOA (NÉM HOA) ─────────────────────────────────────────
 
     public void throwFlowers(Player player) {
         PlayerWeaponState state = plugin.getWeaponManager().getState(player);
         String s1Id = getSkill1Id(player);
 
         if (state.isOnCooldown(s1Id) || state.isOnCooldown(SKILL1_CD)) {
-            player.sendActionBar(color("&cNém Hoa đang hồi! &e" + state.getCooldownRemaining(s1Id) + "s"));
+            player.sendActionBar(color("&cThưởng Hoa đang hồi! &e" + state.getCooldownRemaining(s1Id) + "s"));
             return;
         }
 
@@ -245,7 +244,7 @@ public class FlorentinoSkill {
                     cancel();
                     if (hit == null) return;
 
-                    hit.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 15, 255, false, false, false));
+                    hit.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 15, 255, false, false, false)); // Choáng 0.75s
                     dealSkillDamage(hit, player, getBaseDamage(), 0.0);
 
                     spawnFlowersAt(hit.getLocation(), world, player);
@@ -256,7 +255,7 @@ public class FlorentinoSkill {
         }.runTaskTimer(plugin, 0, 1);
     }
 
-    // ── SKILL 2: THƯỞNG KIẾM (CÓ TỰ ĐỘNG RESET COMBO SAU 3S) ─────────────────
+    // ── SKILL 2: THƯỞNG KIẾM (CÓ AUTO-RESET COMBO SAU 3S) ────────────────────
 
     private void startComboResetTask() {
         new BukkitRunnable() {
@@ -264,7 +263,7 @@ public class FlorentinoSkill {
             public void run() {
                 long now = System.currentTimeMillis();
                 vortexLastHitMap.entrySet().removeIf(entry -> {
-                    if (now - entry.getValue() > 3000L) { // 3 giây không đánh -> Reset
+                    if (now - entry.getValue() > 3000L) {
                         vortexComboMap.remove(entry.getKey());
                         return true;
                     }
@@ -374,11 +373,20 @@ public class FlorentinoSkill {
         UUID targetUUID = target.getUniqueId();
         markedTargets.computeIfAbsent(playerUUID, k -> new HashSet<>()).add(targetUUID);
 
-        state.addPassiveStack("FLORENTINO_CC_IMMUNE", 1, ULT_DURATION);
+        // Kích hoạt Tích Stack Bá Thể Miễn Khống
+        state.addPassiveStack(CC_IMMUNE_BUFF, 1, ULT_DURATION);
+
+        // Clear toàn bộ potion bất lợi ngay lập tức
+        for (PotionEffect effect : player.getActivePotionEffects()) {
+            if (isNegativeEffect(effect.getType())) {
+                player.removePotionEffect(effect.getType());
+            }
+        }
 
         world.playSound(hitLoc, Sound.ENTITY_ENDER_DRAGON_HURT, 0.6f, 1.5f);
-        player.sendActionBar(color("&5✦ &d&lTài Hoa! &7[Ghim Mục Tiêu +30% Dame] &a[Miễn Khống 14s]"));
+        player.sendActionBar(color("&5✦ &d&lTài Hoa! &7[Ghim +30% Dame] &a&l[BÁ THỂ MIỄN KHỐNG 14S]"));
 
+        // Runnable 1: Theo dõi ArmorStand Mark trên đầu quái
         new BukkitRunnable() {
             int ticks = 0;
             @Override
@@ -390,16 +398,44 @@ public class FlorentinoSkill {
 
                     Set<UUID> set = markedTargets.get(playerUUID);
                     if (set != null) set.remove(targetUUID);
-                    state.clearPassiveStack("FLORENTINO_CC_IMMUNE");
+                    state.clearPassiveStack(CC_IMMUNE_BUFF);
                     cancel();
                     return;
                 }
                 marker.teleport(target.getLocation().add(0, target.getHeight() + 0.4, 0));
             }
         }.runTaskTimer(plugin, 0L, 2L);
+
+        // Runnable 2: Hào Quang Miễn Khống Chế (Visual Aura)
+        new BukkitRunnable() {
+            int ticks = 0;
+            @Override
+            public void run() {
+                ticks += 3;
+                if (ticks >= ULT_DURATION || !player.isOnline() || state.getPassiveStack(CC_IMMUNE_BUFF) <= 0) {
+                    cancel();
+                    return;
+                }
+                Location pLoc = player.getLocation().add(0, 1.0, 0);
+                world.spawnParticle(Particle.SPELL_WITCH, pLoc, 4, 0.3, 0.6, 0.3, 0.02);
+                world.spawnParticle(Particle.CHERRY_LEAVES, pLoc, 2, 0.2, 0.4, 0.2, 0.01);
+            }
+        }.runTaskTimer(plugin, 0L, 3L);
     }
 
-    // ── RECYCLE & CLEANUP DỰ DỮ LIỆU KHI OUT / RELOAD ─────────────────────────
+    public boolean isNegativeEffect(PotionEffectType type) {
+        return type.equals(PotionEffectType.SLOWNESS) ||
+               type.equals(PotionEffectType.BLINDNESS) ||
+               type.equals(PotionEffectType.POISON) ||
+               type.equals(PotionEffectType.WITHER) ||
+               type.equals(PotionEffectType.WEAKNESS) ||
+               type.equals(PotionEffectType.LEVITATION) ||
+               type.equals(PotionEffectType.NAUSEA) ||
+               type.equals(PotionEffectType.DARKNESS) ||
+               type.equals(PotionEffectType.UNLUCK);
+    }
+
+    // ── RECYCLE & CLEANUP DỮ LIỆU KHI OUT / RELOAD ───────────────────────────
 
     public void clearPlayerData(UUID uuid) {
         markedTargets.remove(uuid);
@@ -455,8 +491,8 @@ public class FlorentinoSkill {
     private double getBaseDamage() {
         try {
             var wd = plugin.getWeaponManager().getWeaponData("FLORENTINO_SWORD");
-            return (wd != null) ? wd.getBaseDamage() : 8.0;
-        } catch (Exception ignored) { return 8.0; }
+            return (wd != null) ? wd.getBaseDamage() : 18.0;
+        } catch (Exception ignored) { return 18.0; }
     }
 
     private void removeFlowerEntity(World world, int entityId) {
