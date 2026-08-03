@@ -395,6 +395,6 @@ weapons:
     ultimate:
       id: FLORENTINO_ULT
       name: "&d&lTài Hoa"
-      description: "Ghim mục tiêu gây 220% Dame + 5% HP ST Chuẩn, tạo 3 hoa. Nhận Miễn Khống 14s & +30% Dame lên mục tiêu ghim."
+      description: "Ghim mục tiêu gây 220% Dame + 5% HP ST Chuẩn, tạo 3 hoa. Nhận &a&lBá Thể Miễn Khống 14s &7(Kháng mọi hiệu ứng bất lợi & Hất văng) & +30% Dame lên mục tiêu bị ghim."
       cooldown: 15
       mana-cost: 0
