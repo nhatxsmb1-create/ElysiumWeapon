@@ -46,7 +46,7 @@ public class ElysiumWeaponListener implements Listener {
         boolean rightClick = action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK;
         boolean leftClick  = action == Action.LEFT_CLICK_AIR  || action == Action.LEFT_CLICK_BLOCK;
 
-        // ⚔️ Xử lý riêng cho Kiếm Florentino
+        // ⚔️ Kiếm Florentino
         if ("FLORENTINO_SWORD".equalsIgnoreCase(weapon.getId())) {
             if (rightClick && !shift) {
                 e.setCancelled(true);
@@ -95,23 +95,23 @@ public class ElysiumWeaponListener implements Listener {
         // ⚔️ Xử lý riêng cho Kiếm Florentino
         if ("FLORENTINO_SWORD".equalsIgnoreCase(weapon.getId())) {
             
-            // Xóa i-frame bất tử PvP ngay tick tiếp theo để chém combo không bị sượng
+            // Xóa bất tử ở tick tiếp theo sau khi đòn chém hiện tại hoàn tất
             Bukkit.getScheduler().runTask(plugin, () -> {
                 if (target.isValid()) target.setNoDamageTicks(0);
             });
 
-            // 1. Kiểm tra Thưởng Kiếm (Skill 2)
+            // 1. Check Thưởng Kiếm (Skill 2)
             if (florentinoSkill.onHitDuringVortex(player, target, state, e)) {
                 return;
             }
 
-            // 2. Kiểm tra Lướt nhặt hoa
+            // 2. Check Lướt nhặt hoa
             if (florentinoSkill.handleHitAndDash(player, target, state, e)) {
                 return;
             }
         }
 
-        // Thiết lập dame căn bản & tính toán Nội tại cho vũ khí thường
+        // Thiết lập dame căn bản & tính toán Nội tại
         e.setDamage(weapon.getBaseDamage());
         handlePassive(player, weapon, target, e);
 
