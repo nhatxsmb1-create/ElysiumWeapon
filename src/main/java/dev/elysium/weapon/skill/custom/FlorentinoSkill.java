@@ -17,31 +17,24 @@ public class FlorentinoSkill {
 
     private final ElysiumWeapon plugin;
 
-    public static final String PASSIVE_KEY   = "FLORENTINO_READY";
-    public static final String CD_KEY        = "FLORENTINO_PASSIVE_CD";
+    public static final String PASSIVE_READY   = "FLORENTINO_READY";
+    public static final String BUOC_HOA_BUFF   = "FLORENTINO_BUOC_HOA_BUFF";
+    public static final String SKILL1_CD       = "FLORENTINO_SKILL1_CD";
+    public static final int    SKILL1_CD_S     = 7;
 
-    public static final String SKILL1_CD     = "FLORENTINO_SKILL1_CD";
-    public static final int    SKILL1_CD_S   = 7;
-
-    public static final String BUOC_HOA_KEY  = "FLORENTINO_BUOC_HOA";
-    public static final String VORTEX_KEY    = "FLORENTINO_VORTEX";
-
-    public static final String ULT_CD_KEY    = "FLORENTINO_ULT_CD";
-    public static final int    ULT_CD_S      = 15;
-    public static final int    ULT_DURATION  = 280;
-
-    private static final long DASH_COOLDOWN_MS = 250L;
-    private final Map<UUID, Long> lastDashTimes = new HashMap<>();
+    public static final String ULT_CD_KEY      = "FLORENTINO_ULT_CD";
+    public static final int    ULT_CD_S        = 15;
+    public static final int    ULT_DURATION    = 280; // 14s
 
     private final Map<UUID, Set<UUID>> markedTargets = new HashMap<>();
     private final Map<UUID, List<FlowerEntry>> flowerMap = new HashMap<>();
-    private final Map<UUID, Integer> vortexHitCounters = new HashMap<>();
+    private final Map<UUID, Integer> vortexComboMap = new HashMap<>();
 
     private boolean isInternalDamage = false;
 
     public FlorentinoSkill(ElysiumWeapon plugin) {
         this.plugin = plugin;
-        startPassiveTimer();
+        startFlowerPickupTask();
     }
 
     public boolean isInternalDamage() {
@@ -61,10 +54,7 @@ public class FlorentinoSkill {
 
     private String getSkill1Id(Player player) {
         WeaponData wd = plugin.getWeaponManager().getHeldWeaponData(player);
-        if (wd != null && wd.getSkill1() != null) {
-            return wd.getSkill1().getId();
-        }
-        return SKILL1_CD;
+        return (wd != null && wd.getSkill1() != null) ? wd.getSkill1().getId() : SKILL1_CD;
     }
 
     private String getUltId(Player player) {
@@ -76,9 +66,9 @@ public class FlorentinoSkill {
         return ULT_CD_KEY;
     }
 
-    // ── CƠ CHẾ SÁT THƯƠNG TRỰC TIẾP (DIRECT HP OVERRIDE) ─────────────────────
+    // ── HỆ THỐNG GÂY SÁT THƯƠNG CHUẨN ───────────────────────────────────────
 
-    private void dealSkillDamage(LivingEntity target, Player damager, double physicalDmg, double percentHpTrueDmg) {
+    public void dealSkillDamage(LivingEntity target, Player damager, double physicalDmg, double percentHpTrueDmg) {
         isInternalDamage = true;
         try {
             if (isMarked(damager, target)) {
@@ -93,21 +83,9 @@ public class FlorentinoSkill {
             double trueDamage = (targetMaxHp * (percentHpTrueDmg / 100.0));
             double totalDamage = physicalDmg + trueDamage;
 
-            double currentHp = target.getHealth();
-            double finalHp = currentHp - totalDamage;
-
-            // Hiệu ứng giật đỏ chuẩn như va chạm thật
-            target.playEffect(EntityEffect.HURT);
-
-            if (finalHp <= 0) {
-                target.setNoDamageTicks(0);
-                target.damage(999999.0, damager);
-            } else {
-                target.setHealth(Math.max(0.1, finalHp));
-                target.setNoDamageTicks(0);
-                target.damage(0.0001, damager);
-                target.setNoDamageTicks(0);
-            }
+            // Xóa miễn thương tick để chống nuốt đòn
+            target.setNoDamageTicks(0);
+            target.damage(totalDamage, damager);
 
             if (percentHpTrueDmg > 0) {
                 target.getWorld().spawnParticle(Particle.DAMAGE_INDICATOR, target.getLocation().add(0, 1.2, 0), (int) Math.max(1, percentHpTrueDmg), 0.2, 0.2, 0.2, 0.1);
@@ -125,26 +103,101 @@ public class FlorentinoSkill {
         }
     }
 
-    private void dealSkillDamage(LivingEntity target, Player damager, double physicalDmg) {
-        dealSkillDamage(target, damager, physicalDmg, 0.0);
-    }
+    // ── TỰ ĐỘNG HÚT/NHẶT HOA KHI BÁN KÍNH GIẦN (PROXIMITY TICK) ──────────────
 
-    private void startPassiveTimer() {
+    private void startFlowerPickupTask() {
         new BukkitRunnable() {
-            @Override public void run() {
-                for (Player p : Bukkit.getOnlinePlayers()) {
-                    PlayerWeaponState state = plugin.getWeaponManager().getState(p);
-                    if (!"FLORENTINO_SWORD".equals(state.getCurrentWeapon())) continue;
-                    if (state.isOnCooldown(CD_KEY)) continue;
-                    if (state.getPassiveStack(PASSIVE_KEY) > 0) continue;
+            @Override
+            public void run() {
+                for (World world : Bukkit.getWorlds()) {
+                    List<FlowerEntry> flowers = flowerMap.get(world.getUID());
+                    if (flowers == null || flowers.isEmpty()) continue;
 
-                    state.addPassiveStack(PASSIVE_KEY, 1, 99999);
-                    p.sendActionBar(color("&d✦ &fNội tại sẵn sàng!"));
-                    p.playSound(p.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 0.7f, 1.4f);
+                    long now = System.currentTimeMillis();
+                    flowers.removeIf(f -> now > f.expireMs);
+
+                    for (Player player : world.getPlayers()) {
+                        PlayerWeaponState state = plugin.getWeaponManager().getState(player);
+                        if (!"FLORENTINO_SWORD".equals(state.getCurrentWeapon())) continue;
+
+                        Location pLoc = player.getLocation();
+                        Iterator<FlowerEntry> iterator = flowers.iterator();
+
+                        while (iterator.hasNext()) {
+                            FlowerEntry flower = iterator.next();
+                            if (flower.location.distanceSquared(pLoc) <= 5.5) { // Bán kính ~2.3m
+                                onPickupFlower(player, flower, state);
+                                removeFlowerEntity(world, flower.entityId);
+                                iterator.remove();
+                            }
+                        }
+                    }
                 }
             }
-        }.runTaskTimer(plugin, 400L, 400L);
+        }.runTaskTimer(plugin, 2L, 2L);
     }
+
+    private void onPickupFlower(Player player, FlowerEntry flower, PlayerWeaponState state) {
+        // Tích stack Lướt Đánh Cường Hóa
+        state.addPassiveStack(BUOC_HOA_BUFF, 1, 100); // Tồn tại 5s
+
+        // Hồi máu
+        double maxHp = player.getMaxHealth();
+        double healAmount = maxHp * 0.08;
+        player.setHealth(Math.min(maxHp, player.getHealth() + healAmount));
+        player.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 30, 1, false, false, false));
+
+        // Giảm CD Skill 1
+        String s1Id = getSkill1Id(player);
+        if (state.isOnCooldown(s1Id) || state.isOnCooldown(SKILL1_CD)) {
+            double remaining = state.getCooldownRemaining(s1Id);
+            int newCd = (int) Math.max(0, Math.round(remaining - 1.5));
+            state.setCooldown(s1Id, newCd);
+            state.setCooldown(SKILL1_CD, newCd);
+        }
+
+        player.sendActionBar(color("&d✦ &fĐã nhặt hoa! &a+" + (int)healAmount + " HP &b[Sẵn sàng Lướt Kiếm]"));
+        player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 0.6f, 1.6f);
+    }
+
+    // ── KĨ NĂNG LƯỚT ĐÁNH CƯỜNG HÓA (ĐƯỢC KÍCH HOẠT BẰNG LEFT-CLICK) ─────────
+
+    public boolean executeDashAttack(Player player, PlayerWeaponState state) {
+        if (state.getPassiveStack(BUOC_HOA_BUFF) <= 0) return false;
+
+        state.clearPassiveStack(BUOC_HOA_BUFF);
+
+        World world = player.getWorld();
+        Location from = player.getLocation();
+        Vector dir = from.getDirection().setY(0).normalize();
+
+        // Lướt tới trước 4 block
+        Vector velocity = dir.multiply(1.4).setY(0.15);
+        player.setVelocity(velocity);
+
+        world.playSound(from, Sound.ENTITY_PLAYER_ATTACK_SWEEP, 0.8f, 1.5f);
+        world.spawnParticle(Particle.CHERRY_LEAVES, from.clone().add(0, 1, 0), 10, 0.4, 0.4, 0.4, 0.05);
+
+        // Quét sát thương đường lướt
+        new BukkitRunnable() {
+            int ticks = 0;
+            @Override
+            public void run() {
+                ticks++;
+                for (Entity e : player.getWorld().getNearbyEntities(player.getLocation(), 2.5, 2.0, 2.5)) {
+                    if (isValidTarget(player, e)) {
+                        LivingEntity target = (LivingEntity) e;
+                        dealSkillDamage(target, player, getBaseDamage() * 1.4, 4.0); // 4% True Damage
+                    }
+                }
+                if (ticks >= 3) cancel();
+            }
+        }.runTaskTimer(plugin, 1L, 1L);
+
+        return true;
+    }
+
+    // ── SKILL 1: NÉM HOA ─────────────────────────────────────────────────────
 
     public void throwFlowers(Player player) {
         PlayerWeaponState state = plugin.getWeaponManager().getState(player);
@@ -167,158 +220,65 @@ public class FlorentinoSkill {
         new BukkitRunnable() {
             double dist = 0;
             @Override public void run() {
-                dist += 0.6;
+                dist += 0.8;
                 Location cur = start.clone().add(dir.clone().multiply(dist));
-                world.spawnParticle(Particle.CHERRY_LEAVES, cur, 1, 0.05, 0.05, 0.05, 0.01);
+                world.spawnParticle(Particle.CHERRY_LEAVES, cur, 2, 0.05, 0.05, 0.05, 0.01);
 
                 LivingEntity hit = null;
-                for (Entity e : world.getNearbyEntities(cur, 1.0, 1.0, 1.0)) {
+                for (Entity e : world.getNearbyEntities(cur, 1.1, 1.1, 1.1)) {
                     if (isValidTarget(player, e)) {
-                        hit = (LivingEntity) e; 
+                        hit = (LivingEntity) e;
                         break;
                     }
                 }
 
-                if (hit != null || dist >= 7) {
+                if (hit != null || dist >= 8) {
                     cancel();
                     if (hit == null) return;
-                    
-                    hit.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 10, 255, false, false, false));
-                    hit.addPotionEffect(new PotionEffect(PotionEffectType.JUMP_BOOST, 10, 128, false, false, false));
-                    dealSkillDamage(hit, player, getBaseDamage());
-                    
+
+                    hit.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 15, 255, false, false, false));
+                    dealSkillDamage(hit, player, getBaseDamage(), 0.0);
+
                     spawnFlowersAt(hit.getLocation(), world, player);
-                    world.playSound(hit.getLocation(), Sound.BLOCK_CHERRY_LEAVES_PLACE, 0.8f, 1.2f);
-                    player.sendActionBar(color("&d✦ &fChoáng & Trúng 3 hoa!"));
+                    world.playSound(hit.getLocation(), Sound.BLOCK_CHERRY_LEAVES_PLACE, 1.0f, 1.2f);
+                    player.sendActionBar(color("&d✦ &fTrúng mục tiêu! Bắn ra 3 hoa!"));
                 }
             }
         }.runTaskTimer(plugin, 0, 1);
     }
 
-    public boolean handleHitAndDash(Player player, LivingEntity target, PlayerWeaponState state) {
-        long now = System.currentTimeMillis();
-        long lastDash = lastDashTimes.getOrDefault(player.getUniqueId(), 0L);
+    // ── CHIÊU 2: THƯỞNG KIẾM (COMBO CHÉM 3 CẤP) ──────────────────────────────
 
-        if (now - lastDash < DASH_COOLDOWN_MS) return false;
-
-        FlowerEntry nearest = getNearestFlower(player, 14.0);
-        if (nearest == null) return false;
-
-        lastDashTimes.put(player.getUniqueId(), now);
-        state.clearPassiveStack(PASSIVE_KEY);
-        executeDash(player, target, nearest, state);
-        return true;
-    }
-
-    private void executeDash(Player player, LivingEntity target, FlowerEntry flower, PlayerWeaponState state) {
-        Location flowerLoc = flower.location.clone().add(0.5, 0, 0.5);
-        Location from = player.getLocation();
-        Location land = flowerLoc.clone();
-
-        if (target != null && target.isValid()) {
-            Vector dirToTarget = target.getLocation().add(0, 1, 0).subtract(land).toVector();
-            if (dirToTarget.lengthSquared() > 0) land.setDirection(dirToTarget);
-        } else {
-            land.setYaw(from.getYaw());
-            land.setPitch(from.getPitch());
-        }
-
-        player.teleport(land);
-        player.getWorld().playSound(land, Sound.ENTITY_ENDERMAN_TELEPORT, 0.4f, 1.5f);
-        player.getWorld().spawnParticle(Particle.CHERRY_LEAVES, land.clone().add(0, 1, 0), 6, 0.3, 0.3, 0.3, 0.02);
-
-        double baseDamage = getBaseDamage();
-        final double dashDamage = baseDamage * 1.3;
-
-        for (Entity e : player.getWorld().getNearbyEntities(from, 4, 2, 4)) {
-            if (!isValidTarget(player, e)) continue;
-            LivingEntity le = (LivingEntity) e;
-            double t = dotProject(from, flowerLoc, le.getLocation());
-            if (t >= 0 && t <= 1.2 && distToLine(from, flowerLoc, le.getLocation()) < 1.5) {
-                dealSkillDamage(le, player, dashDamage, 3.0);
-            }
-        }
-
-        pickupFlower(player, target, flower, state);
-    }
-
-    private void pickupFlower(Player player, LivingEntity target, FlowerEntry entry, PlayerWeaponState state) {
-        removeFlowerById(player.getWorld(), entry.entityId);
-
-        state.addPassiveStack(PASSIVE_KEY, 1, 99999);
-        state.addPassiveStack(BUOC_HOA_KEY, 1, 60);
-        state.clearPassiveStack(VORTEX_KEY);
-        state.addPassiveStack(VORTEX_KEY, 3, 200);
-
-        double maxHp = player.getMaxHealth();
-        double healAmount = maxHp * 0.08;
-
-        if (target != null && isMarked(player, target)) {
-            healAmount *= 2.0;
-        }
-
-        player.setHealth(Math.min(maxHp, player.getHealth() + healAmount));
-        player.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 25, 1, false, false, false));
-
-        String s1Id = getSkill1Id(player);
-        if (state.isOnCooldown(s1Id) || state.isOnCooldown(SKILL1_CD)) {
-            double remaining = state.getCooldownRemaining(s1Id);
-            int newCd = (int) Math.max(0, Math.round(remaining - 1.5));
-            state.setCooldown(s1Id, newCd);
-            state.setCooldown(SKILL1_CD, newCd);
-        }
-
-        player.sendActionBar(color("&d✦ &fNhặt hoa! &a+" + (int)healAmount + " HP &b[-1.5s C1]"));
-        player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 0.6f, 1.6f);
-    }
-
-    public boolean onHitDuringVortex(Player player, LivingEntity target, PlayerWeaponState state) {
-        int stacks = state.getPassiveStack(VORTEX_KEY);
-        if (stacks <= 0) return false;
-
-        state.clearPassiveStack(VORTEX_KEY);
-        int remaining = stacks - 1;
-        if (remaining > 0) state.addPassiveStack(VORTEX_KEY, remaining, 200);
+    public void triggerVortexCombo(Player player, LivingEntity target) {
+        UUID playerUUID = player.getUniqueId();
+        int count = vortexComboMap.getOrDefault(playerUUID, 0) + 1;
 
         World world = player.getWorld();
-        Location center = target.getLocation().clone().add(0, 1, 0);
+        Location center = target.getLocation().add(0, 1, 0);
         double baseDmg = getBaseDamage();
 
-        UUID playerUUID = player.getUniqueId();
-        int count = vortexHitCounters.getOrDefault(playerUUID, 0) + 1;
-
         if (count == 1) {
-            dealSkillDamage(target, player, baseDmg * 0.8, 0.0);
+            dealSkillDamage(target, player, baseDmg * 1.0, 2.0);
             target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 30, 1, false, false, false));
-            world.playSound(center, Sound.ENTITY_PLAYER_ATTACK_SWEEP, 0.6f, 1.2f);
-            player.sendActionBar(color("&d✦ &bThưởng Kiếm 1 &7[Slow]"));
-            vortexHitCounters.put(playerUUID, 1);
-
+            world.playSound(center, Sound.ENTITY_PLAYER_ATTACK_SWEEP, 0.8f, 1.2f);
+            player.sendActionBar(color("&d✦ &bThưởng Kiếm I &7[Làm chậm]"));
+            vortexComboMap.put(playerUUID, 1);
         } else if (count == 2) {
-            dealSkillDamage(target, player, baseDmg * 1.0, 3.0);
-            target.setVelocity(new Vector(0, 0.35, 0));
-            world.playSound(center, Sound.ENTITY_PLAYER_ATTACK_KNOCKBACK, 0.7f, 1.4f);
-            player.sendActionBar(color("&d✦ &eThưởng Kiếm 2 &c&l[HẤT TUNG!]"));
-            vortexHitCounters.put(playerUUID, 2);
-
+            dealSkillDamage(target, player, baseDmg * 1.2, 4.0);
+            target.setVelocity(new Vector(0, 0.35, 0)); // Hất tung nhẹ
+            world.playSound(center, Sound.ENTITY_PLAYER_ATTACK_KNOCKBACK, 0.8f, 1.4f);
+            player.sendActionBar(color("&d✦ &eThưởng Kiếm II &c&l[HẤT TUNG!]"));
+            vortexComboMap.put(playerUUID, 2);
         } else {
-            dealSkillDamage(target, player, baseDmg * 1.6, 5.0);
-
-            world.spawnParticle(Particle.CRIT, target.getLocation().add(0, 1, 0), 15, 0.2, 0.4, 0.2, 0.1);
-            world.playSound(center, Sound.BLOCK_ANVIL_LAND, 0.5f, 1.6f);
-            player.sendActionBar(color("&d✦ &c&lThưởng Kiếm 3 &4[Chí Mạng + True Dmg]"));
-            vortexHitCounters.put(playerUUID, 0);
+            dealSkillDamage(target, player, baseDmg * 1.8, 6.0); // Chí mạng sát thương chuẩn
+            world.spawnParticle(Particle.CRIT, center, 15, 0.3, 0.3, 0.3, 0.1);
+            world.playSound(center, Sound.BLOCK_ANVIL_LAND, 0.6f, 1.5f);
+            player.sendActionBar(color("&d✦ &c&lThưởng Kiếm III &4[Chí Mạng + Sát thương chuẩn]"));
+            vortexComboMap.put(playerUUID, 0);
         }
-
-        for (int i = 0; i < 8; i++) {
-            double angle = Math.toRadians((360.0 / 8) * i);
-            world.spawnParticle(Particle.CHERRY_LEAVES,
-                center.clone().add(2.0 * Math.cos(angle), 0, 2.0 * Math.sin(angle)),
-                1, 0.05, 0.05, 0.05, 0.01);
-        }
-
-        return true;
     }
+
+    // ── ULTIMATE: TÀI HOA ─────────────────────────────────────────────────────
 
     public void castUltimate(Player player) {
         PlayerWeaponState state = plugin.getWeaponManager().getState(player);
@@ -344,15 +304,14 @@ public class FlorentinoSkill {
 
             @Override public void run() {
                 if (hit || dist >= 9) { cancel(); return; }
-                dist += 0.8;
+                dist += 0.9;
                 Location cur = start.clone().add(dir.clone().multiply(dist));
-
-                world.spawnParticle(Particle.CHERRY_LEAVES, cur, 2, 0.1, 0.1, 0.1, 0.01);
+                world.spawnParticle(Particle.CHERRY_LEAVES, cur, 3, 0.1, 0.1, 0.1, 0.01);
 
                 LivingEntity target = null;
-                for (Entity e : world.getNearbyEntities(cur, 1.2, 1.2, 1.2)) {
+                for (Entity e : world.getNearbyEntities(cur, 1.3, 1.3, 1.3)) {
                     if (isValidTarget(player, e)) {
-                        target = (LivingEntity) e; 
+                        target = (LivingEntity) e;
                         break;
                     }
                 }
@@ -365,19 +324,14 @@ public class FlorentinoSkill {
             }
         }.runTaskTimer(plugin, 0, 1);
 
-        world.playSound(start, Sound.ENTITY_ENDERMAN_TELEPORT, 0.4f, 2.0f);
+        world.playSound(start, Sound.ENTITY_ENDERMAN_TELEPORT, 0.5f, 1.8f);
         player.sendActionBar(color("&5✦ &d&lTài Hoa!"));
     }
 
     private void onUltimateHit(Player player, LivingEntity target, PlayerWeaponState state, World world) {
         Location hitLoc = target.getLocation();
 
-        Location land = hitLoc.clone().add(-player.getLocation().getDirection().getX(), 0, -player.getLocation().getDirection().getZ());
-        land.setYaw(player.getLocation().getYaw());
-        land.setPitch(player.getLocation().getPitch());
-        player.teleport(land);
-
-        dealSkillDamage(target, player, getBaseDamage() * 2.0);
+        dealSkillDamage(target, player, getBaseDamage() * 2.2, 5.0);
         spawnFlowersAt(hitLoc, world, player);
 
         target.setGlowing(true);
@@ -395,12 +349,11 @@ public class FlorentinoSkill {
 
         state.addPassiveStack("FLORENTINO_CC_IMMUNE", 1, ULT_DURATION);
 
-        world.playSound(hitLoc, Sound.ENTITY_ENDER_DRAGON_HURT, 0.5f, 1.6f);
-        player.sendActionBar(color("&5✦ &d&lTài Hoa! &7[Ghim Mục Tiêu +30% Dame] &a[Miễn CC 14s]"));
+        world.playSound(hitLoc, Sound.ENTITY_ENDER_DRAGON_HURT, 0.6f, 1.5f);
+        player.sendActionBar(color("&5✦ &d&lTài Hoa! &7[Ghim Mục Tiêu +30% Dame] &a[Miễn Khống 14s]"));
 
         new BukkitRunnable() {
             int ticks = 0;
-
             @Override
             public void run() {
                 ticks += 2;
@@ -414,17 +367,18 @@ public class FlorentinoSkill {
                     cancel();
                     return;
                 }
-
                 marker.teleport(target.getLocation().add(0, target.getHeight() + 0.4, 0));
             }
         }.runTaskTimer(plugin, 0L, 2L);
     }
 
+    // ── HELPER UTILS ─────────────────────────────────────────────────────────
+
     private void spawnFlowersAt(Location center, World world, Player player) {
         for (int i = 0; i < 3; i++) {
             double angle = Math.toRadians(i * 120.0);
-            double ox = 2.0 * Math.cos(angle);
-            double oz = 2.0 * Math.sin(angle);
+            double ox = 2.2 * Math.cos(angle);
+            double oz = 2.2 * Math.sin(angle);
             Location flowerLoc = findGround(new Location(world, center.getX() + ox, center.getY(), center.getZ() + oz));
 
             Item flower = world.dropItem(flowerLoc.clone().add(0, 0.2, 0), new ItemStack(Material.POPPY));
@@ -435,21 +389,17 @@ public class FlorentinoSkill {
             flower.setCustomName(color("&d✦ Hoa Florentino"));
             flower.setCustomNameVisible(true);
 
-            long expireMs = System.currentTimeMillis() + 10_000L;
+            long expireMs = System.currentTimeMillis() + 8_000L;
             flowerMap.computeIfAbsent(world.getUID(), k -> new ArrayList<>()).add(new FlowerEntry(flower.getEntityId(), flowerLoc, expireMs));
 
             final int eid = flower.getEntityId();
-            Bukkit.getScheduler().runTaskLater(plugin, () -> removeFlowerById(world, eid), 200L);
+            Bukkit.getScheduler().runTaskLater(plugin, () -> removeFlowerEntity(world, eid), 160L);
         }
     }
 
     public boolean isMarked(Player player, LivingEntity target) {
         Set<UUID> set = markedTargets.get(player.getUniqueId());
         return set != null && set.contains(target.getUniqueId());
-    }
-
-    public boolean hasCCImmune(PlayerWeaponState state) {
-        return state.getPassiveStack("FLORENTINO_CC_IMMUNE") > 0;
     }
 
     private double getBaseDamage() {
@@ -459,33 +409,7 @@ public class FlorentinoSkill {
         } catch (Exception ignored) { return 8.0; }
     }
 
-    private FlowerEntry getNearestFlower(Player player, double maxDist) {
-        List<FlowerEntry> list = flowerMap.get(player.getWorld().getUID());
-        if (list == null || list.isEmpty()) return null;
-        long now = System.currentTimeMillis();
-        list.removeIf(f -> now > f.expireMs);
-
-        FlowerEntry nearest = null;
-        double minDistSq = maxDist * maxDist;
-        Location pLoc = player.getLocation();
-
-        for (FlowerEntry f : list) {
-            double dx = pLoc.getX() - (f.location.getX() + 0.5);
-            double dy = (pLoc.getY() - f.location.getY()) * 0.5;
-            double dz = pLoc.getZ() - (f.location.getZ() + 0.5);
-            double distSq = dx * dx + dy * dy + dz * dz;
-
-            if (distSq < minDistSq) {
-                minDistSq = distSq;
-                nearest = f;
-            }
-        }
-        return nearest;
-    }
-
-    private void removeFlowerById(World world, int entityId) {
-        List<FlowerEntry> list = flowerMap.get(world.getUID());
-        if (list != null) list.removeIf(f -> f.entityId == entityId);
+    private void removeFlowerEntity(World world, int entityId) {
         for (Entity e : world.getEntities()) {
             if (e.getEntityId() == entityId) { e.remove(); break; }
         }
@@ -501,22 +425,6 @@ public class FlorentinoSkill {
     }
 
     private String color(String s) { return s.replace("&", "\u00a7"); }
-
-    private double dotProject(Location a, Location b, Location p) {
-        double abx = b.getX()-a.getX(), abz = b.getZ()-a.getZ();
-        double apx = p.getX()-a.getX(), apz = p.getZ()-a.getZ();
-        double ab2 = abx*abx + abz*abz;
-        if (ab2 == 0) return 0;
-        return (apx*abx + apz*apz) / ab2;
-    }
-
-    private double distToLine(Location a, Location b, Location p) {
-        double abx = b.getX()-a.getX(), abz = b.getZ()-a.getZ();
-        double apx = p.getX()-a.getX(), apz = p.getZ()-a.getZ();
-        double cross = abx*apz - abz*apx;
-        double ab = Math.sqrt(abx*abx + abz*abz);
-        return ab == 0 ? Math.sqrt(apx*apx+apz*apz) : Math.abs(cross)/ab;
-    }
 
     public static class FlowerEntry {
         public final int      entityId;
