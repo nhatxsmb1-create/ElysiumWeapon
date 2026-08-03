@@ -48,16 +48,11 @@ public class ElysiumWeaponListener implements Listener {
 
         // ⚔️ Xử lý riêng cho Kiếm Florentino
         if ("FLORENTINO_SWORD".equalsIgnoreCase(weapon.getId())) {
-            
-            // Chiêu 1: Thưởng Hoa (Phải chuột)
             if (rightClick && !shift) {
                 e.setCancelled(true);
                 florentinoSkill.throwFlowers(player);
                 return;
-            } 
-            
-            // Ult: Tài Hoa (Shift + Phải chuột)
-            else if (rightClick && shift) {
+            } else if (rightClick && shift) {
                 e.setCancelled(true);
                 florentinoSkill.castUltimate(player);
                 return;
@@ -87,7 +82,6 @@ public class ElysiumWeaponListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onAttack(EntityDamageByEntityEvent e) {
-        // Giữ nguyên kiểm tra damage nội bộ của Florentino
         if (florentinoSkill.isInternalDamage()) return;
 
         if (!(e.getDamager() instanceof Player player)) return;
@@ -98,21 +92,21 @@ public class ElysiumWeaponListener implements Listener {
 
         PlayerWeaponState state = plugin.getWeaponManager().getState(player);
 
-        // ⚔️ Xử lý riêng cho Kiếm Florentino (FIX TRIỆT ĐỂ BẮT ĐẦU TỪ ĐÂY)
+        // ⚔️ Xử lý riêng cho Kiếm Florentino
         if ("FLORENTINO_SWORD".equalsIgnoreCase(weapon.getId())) {
             
-            // Ép xóa i-frame bất tử của target trước khi check đòn
-            target.setNoDamageTicks(0);
+            // Xóa i-frame bất tử PvP ngay tick tiếp theo để chém combo không bị sượng
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                if (target.isValid()) target.setNoDamageTicks(0);
+            });
 
-            // 1. Kiểm tra lướt nhặt hoa
-            if (florentinoSkill.handleHitAndDash(player, target, state)) {
-                e.setCancelled(true); // Hủy đòn đánh thường để dùng sát thương & lướt của Florentino
+            // 1. Kiểm tra Thưởng Kiếm (Skill 2)
+            if (florentinoSkill.onHitDuringVortex(player, target, state, e)) {
                 return;
             }
 
-            // 2. Kiểm tra Thưởng Kiếm (Skill 2)
-            if (florentinoSkill.onHitDuringVortex(player, target, state)) {
-                e.setCancelled(true); // Hủy đòn đánh thường để dùng sát thương & hiệu ứng Thưởng Kiếm
+            // 2. Kiểm tra Lướt nhặt hoa
+            if (florentinoSkill.handleHitAndDash(player, target, state, e)) {
                 return;
             }
         }
