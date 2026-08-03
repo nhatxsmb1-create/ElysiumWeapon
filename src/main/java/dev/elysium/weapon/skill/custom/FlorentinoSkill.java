@@ -22,14 +22,14 @@ public class FlorentinoSkill {
     public static final String CD_KEY        = "FLORENTINO_PASSIVE_CD";
 
     public static final String SKILL1_CD     = "FLORENTINO_SKILL1_CD";
-    public static final int    SKILL1_CD_S   = 7;    // giay
+    public static final int    SKILL1_CD_S   = 7;    // giây
 
     public static final String BUOC_HOA_KEY  = "FLORENTINO_BUOC_HOA";
     public static final String VORTEX_KEY    = "FLORENTINO_VORTEX";
 
     public static final String ULT_CD_KEY    = "FLORENTINO_ULT_CD";
-    public static final int    ULT_CD_S      = 15;   // giay
-    public static final int    ULT_DURATION  = 280;  // tick = 14s
+    public static final int    ULT_CD_S      = 15;   // giây
+    public static final int    ULT_DURATION  = 280;  // 14 giây
 
     // Cooldown lướt hoa (250ms)
     private static final long DASH_COOLDOWN_MS = 250L;
@@ -61,7 +61,6 @@ public class FlorentinoSkill {
         return true;
     }
 
-    // Lấy ID Cooldown Skill 1 để ActionBar nhận diện được
     private String getSkill1Id(Player player) {
         WeaponData wd = plugin.getWeaponManager().getHeldWeaponData(player);
         if (wd != null && wd.getSkill1() != null) {
@@ -70,7 +69,6 @@ public class FlorentinoSkill {
         return SKILL1_CD;
     }
 
-    // Lấy ID Cooldown Ult/Skill 2 để ActionBar nhận diện được
     private String getUltId(Player player) {
         WeaponData wd = plugin.getWeaponManager().getHeldWeaponData(player);
         if (wd != null) {
@@ -80,7 +78,7 @@ public class FlorentinoSkill {
         return ULT_CD_KEY;
     }
 
-    // ── TỐI ƯU CÔNG THỨC DAME & FIX NO DAMAGE TICKS FOR PLAYER ───────────────
+    // ── HỆ THỐNG GÂY SÁT THƯƠNG TRIỆT HẠ LỖI BẤT TỬ (NMS FIX) ─────────────────
 
     private void dealSkillDamage(LivingEntity target, Player damager, double physicalDmg, double percentHpTrueDmg) {
         isInternalDamage = true;
@@ -90,7 +88,6 @@ public class FlorentinoSkill {
                 percentHpTrueDmg *= 1.30;
             }
 
-            // Ap dung Mastery damage bonus cua FLORENTINO_SWORD
             double masteryBonus = getMasteryDamageBonus(damager);
             physicalDmg *= masteryBonus;
 
@@ -98,10 +95,26 @@ public class FlorentinoSkill {
             double trueDamage = (targetMaxHp * (percentHpTrueDmg / 100.0));
             double totalDamage = physicalDmg + trueDamage;
 
-            // FIX NO DAMAGE TICKS: Xóa cả trước lẫn sau khi gây sát thương
+            // 1. Xóa sạch khung bất tử và sát thương nhận trước đó
+            target.setMaximumNoDamageTicks(0);
             target.setNoDamageTicks(0);
+            target.setLastDamage(0.0);
+
+            // 2. Gây sát thương chính thức
             target.damage(totalDamage, damager);
+
+            // 3. Reset ngay trong tick hiện tại
             target.setNoDamageTicks(0);
+            target.setLastDamage(0.0);
+            target.setMaximumNoDamageTicks(20);
+
+            // 4. Bắt buộc 1-tick delay để đè bẹp NMS End-of-Tick Reset (Gốc rễ gây nuốt đòn)
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                if (target.isValid() && !target.isDead()) {
+                    target.setNoDamageTicks(0);
+                    target.setLastDamage(0.0);
+                }
+            }, 1L);
 
             if (percentHpTrueDmg > 0) {
                 target.getWorld().spawnParticle(Particle.DAMAGE_INDICATOR, target.getLocation().add(0, 1.2, 0), (int) Math.max(1, percentHpTrueDmg), 0.2, 0.2, 0.2, 0.1);
@@ -111,7 +124,6 @@ public class FlorentinoSkill {
         }
     }
 
-    /** Lay Mastery damage bonus - SKILL1 slot */
     private double getMasteryDamageBonus(Player player) {
         try {
             return plugin.getWeaponMastery().getDamageBonus(player, "FLORENTINO_SWORD", "SKILL1");
@@ -154,7 +166,6 @@ public class FlorentinoSkill {
             return;
         }
 
-        // Ap dung Mastery cooldown reduction cho Skill1
         int cdModifier = plugin.getWeaponMastery().getCooldownModifier(player, "FLORENTINO_SWORD", "SKILL1");
         int finalCd = Math.max(1, SKILL1_CD_S + cdModifier);
         state.setCooldown(s1Id, finalCd);
@@ -264,7 +275,6 @@ public class FlorentinoSkill {
         player.setHealth(Math.min(maxHp, player.getHealth() + healAmount));
         player.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 25, 1, false, false, false));
 
-        // Giảm hồi chiêu C1 đi 1.5s & Cập nhật thẳng lên ActionBar
         String s1Id = getSkill1Id(player);
         if (state.isOnCooldown(s1Id) || state.isOnCooldown(SKILL1_CD)) {
             double remaining = state.getCooldownRemaining(s1Id);
@@ -338,7 +348,6 @@ public class FlorentinoSkill {
             return;
         }
 
-        // Ap dung Mastery cooldown reduction cho Ultimate
         int ultCdModifier = plugin.getWeaponMastery().getCooldownModifier(player, "FLORENTINO_SWORD", "ULTIMATE");
         int finalUltCd = Math.max(1, ULT_CD_S + ultCdModifier);
         state.setCooldown(ultId, finalUltCd);
