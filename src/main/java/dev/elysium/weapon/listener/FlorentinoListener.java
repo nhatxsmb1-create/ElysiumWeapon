@@ -19,9 +19,10 @@ public class FlorentinoListener implements Listener {
     private final ElysiumWeapon plugin;
     private final FlorentinoSkill florentinoSkill;
 
-    public FlorentinoListener(ElysiumWeapon plugin) {
+    // Nên truyền instance FlorentinoSkill vào constructor thay vì `new` để dùng chung state
+    public FlorentinoListener(ElysiumWeapon plugin, FlorentinoSkill florentinoSkill) {
         this.plugin = plugin;
-        this.florentinoSkill = new FlorentinoSkill(plugin);
+        this.florentinoSkill = florentinoSkill;
     }
 
     // ── Click Detection (Dùng Chiêu Florentino) ─────────────────────────────
@@ -52,6 +53,7 @@ public class FlorentinoListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onAttack(EntityDamageByEntityEvent e) {
+        // Chặn vòng lặp vô tận từ target.damage() nội bộ
         if (florentinoSkill.isInternalDamage()) return;
 
         if (!(e.getDamager() instanceof Player player)) return;
@@ -62,13 +64,15 @@ public class FlorentinoListener implements Listener {
 
         PlayerWeaponState state = plugin.getWeaponManager().getState(player);
 
-        // Lướt nhặt hoa (Nội tại)
+        // 1. Lướt nhặt hoa (Nội tại)
         if (florentinoSkill.handleHitAndDash(player, target, state)) {
+            e.setCancelled(true); // Hủy đòn đánh tay gốc để tránh x2 dame
             return;
         }
 
-        // Thưởng Kiếm (Chiêu 2)
+        // 2. Thưởng Kiếm (Chiêu 2)
         if (florentinoSkill.onHitDuringVortex(player, target, state)) {
+            e.setCancelled(true); // Hủy đòn đánh tay gốc để tránh x2 dame
             return;
         }
     }
