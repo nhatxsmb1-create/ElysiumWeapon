@@ -53,6 +53,8 @@ public class FlorentinoSkill {
     private boolean isValidTarget(Player caster, Entity entity) {
         if (!(entity instanceof LivingEntity target) || entity.equals(caster)) return false;
         if (target.isDead() || !target.isValid()) return false;
+        if (target.hasMetadata("NPC")) return false; // Bỏ qua NPC
+        
         if (target instanceof Player p) {
             return p.getGameMode() == GameMode.SURVIVAL || p.getGameMode() == GameMode.ADVENTURE;
         }
@@ -78,7 +80,7 @@ public class FlorentinoSkill {
         return ULT_CD_KEY;
     }
 
-    // ── TỐI ƯU CÔNG THỨC DAME ──────────────────────────────────────────────────
+    // ── TỐI ƯU CÔNG THỨC DAME & FIX NO DAMAGE TICKS FOR PLAYER ───────────────
 
     private void dealSkillDamage(LivingEntity target, Player damager, double physicalDmg, double percentHpTrueDmg) {
         isInternalDamage = true;
@@ -95,6 +97,9 @@ public class FlorentinoSkill {
             double targetMaxHp = target.getMaxHealth();
             double trueDamage = (targetMaxHp * (percentHpTrueDmg / 100.0));
             double totalDamage = physicalDmg + trueDamage;
+
+            // FIX CHÍNH: Xóa ngay thời gian bất tử của Player target để đòn dồn combo ăn sát thương 100%
+            target.setNoDamageTicks(0);
 
             target.damage(totalDamage, damager);
 
@@ -167,17 +172,18 @@ public class FlorentinoSkill {
                 world.spawnParticle(Particle.CHERRY_LEAVES, cur, 1, 0.05, 0.05, 0.05, 0.01);
 
                 LivingEntity hit = null;
-                for (Entity e : world.getNearbyEntities(cur, 0.8, 0.8, 0.8)) {
+                for (Entity e : world.getNearbyEntities(cur, 1.0, 1.0, 1.0)) {
                     if (isValidTarget(player, e)) {
                         hit = (LivingEntity) e; 
                         break;
                     }
                 }
 
-                if (hit != null || dist >= 6) {
+                if (hit != null || dist >= 7) {
                     cancel();
                     if (hit == null) return;
                     
+                    hit.setNoDamageTicks(0);
                     hit.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 10, 255, false, false, false));
                     hit.addPotionEffect(new PotionEffect(PotionEffectType.JUMP_BOOST, 10, 128, false, false, false));
                     dealSkillDamage(hit, player, getBaseDamage());
@@ -215,6 +221,7 @@ public class FlorentinoSkill {
         if (target != null && target.isValid()) {
             Vector dirToTarget = target.getLocation().add(0, 1, 0).subtract(land).toVector();
             if (dirToTarget.lengthSquared() > 0) land.setDirection(dirToTarget);
+            target.setNoDamageTicks(0); // Bỏ qua bất tử của đối phương khi lướt
         } else {
             land.setYaw(from.getYaw());
             land.setPitch(from.getPitch());
@@ -286,6 +293,8 @@ public class FlorentinoSkill {
         Location center = target.getLocation().clone().add(0, 1, 0);
         double baseDmg = getBaseDamage();
 
+        target.setNoDamageTicks(0); // Xóa ticks bất tử trước khi chém Thưởng Kiếm
+
         UUID playerUUID = player.getUniqueId();
         int count = vortexHitCounters.getOrDefault(playerUUID, 0) + 1;
 
@@ -348,14 +357,14 @@ public class FlorentinoSkill {
             boolean hit = false;
 
             @Override public void run() {
-                if (hit || dist >= 8) { cancel(); return; }
+                if (hit || dist >= 9) { cancel(); return; }
                 dist += 0.8;
                 Location cur = start.clone().add(dir.clone().multiply(dist));
 
                 world.spawnParticle(Particle.CHERRY_LEAVES, cur, 2, 0.1, 0.1, 0.1, 0.01);
 
                 LivingEntity target = null;
-                for (Entity e : world.getNearbyEntities(cur, 1.0, 1.0, 1.0)) {
+                for (Entity e : world.getNearbyEntities(cur, 1.2, 1.2, 1.2)) {
                     if (isValidTarget(player, e)) {
                         target = (LivingEntity) e; 
                         break;
@@ -382,6 +391,7 @@ public class FlorentinoSkill {
         land.setPitch(player.getLocation().getPitch());
         player.teleport(land);
 
+        target.setNoDamageTicks(0);
         dealSkillDamage(target, player, getBaseDamage() * 2.0);
         spawnFlowersAt(hitLoc, world, player);
 
