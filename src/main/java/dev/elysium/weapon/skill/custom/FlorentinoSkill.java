@@ -5,21 +5,15 @@ import dev.elysium.weapon.weapon.PlayerWeaponState;
 import dev.elysium.weapon.weapon.WeaponData;
 import org.bukkit.*;
 import org.bukkit.entity.*;
-import org.bukkit.event.EventHandler;
-import org.bukkit.event.Listener;
-import org.bukkit.event.entity.EntityDeathEvent;
-import org.bukkit.event.world.ChunkUnloadEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
-import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 
-public class FlorentinoSkill implements Listener {
+public class FlorentinoSkill {
 
     private final ElysiumWeapon plugin;
 
@@ -45,21 +39,24 @@ public class FlorentinoSkill implements Listener {
     private final Map<UUID, List<FlowerEntry>> flowerMap = new HashMap<>();
     private final Map<UUID, Integer> vortexHitCounters = new HashMap<>();
 
-    // ── QUẢN LÝ HOLOGRAM MARKER THÊM MỚI ─────────────────────────────────────────
-    private final Map<UUID, ArmorStand> activeMarkers = new ConcurrentHashMap<>();
-    private final Map<UUID, BukkitTask> activeTasks = new ConcurrentHashMap<>();
-
     private boolean isInternalDamage = false;
 
     public FlorentinoSkill(ElysiumWeapon plugin) {
         this.plugin = plugin;
-        // Đăng ký Listener để xử lý sự kiện Mob chết & Chunk unload
-        Bukkit.getPluginManager().registerEvents(this, plugin);
         startPassiveTimer();
     }
 
     public boolean isInternalDamage() {
         return isInternalDamage;
+    }
+
+    private boolean isValidTarget(Player caster, Entity entity) {
+        if (!(entity instanceof LivingEntity target) || entity.equals(caster)) return false;
+        if (target.isDead() || !target.isValid()) return false;
+        if (target instanceof Player p) {
+            return p.getGameMode() == GameMode.SURVIVAL || p.getGameMode() == GameMode.ADVENTURE;
+        }
+        return true;
     }
 
     // Lấy ID Cooldown Skill 1 để ActionBar nhận diện được
@@ -171,8 +168,9 @@ public class FlorentinoSkill implements Listener {
 
                 LivingEntity hit = null;
                 for (Entity e : world.getNearbyEntities(cur, 0.8, 0.8, 0.8)) {
-                    if (e instanceof LivingEntity le && !(le instanceof Player) && !e.equals(player)) {
-                        hit = le; break;
+                    if (isValidTarget(player, e)) {
+                        hit = (LivingEntity) e; 
+                        break;
                     }
                 }
 
@@ -230,7 +228,8 @@ public class FlorentinoSkill implements Listener {
         final double dashDamage = baseDamage * 1.3;
 
         for (Entity e : player.getWorld().getNearbyEntities(from, 4, 2, 4)) {
-            if (!(e instanceof LivingEntity le) || e instanceof Player) continue;
+            if (!isValidTarget(player, e)) continue;
+            LivingEntity le = (LivingEntity) e;
             double t = dotProject(from, flowerLoc, le.getLocation());
             if (t >= 0 && t <= 1.2 && distToLine(from, flowerLoc, le.getLocation()) < 1.5) {
                 dealSkillDamage(le, player, dashDamage, 3.0);
@@ -357,8 +356,9 @@ public class FlorentinoSkill implements Listener {
 
                 LivingEntity target = null;
                 for (Entity e : world.getNearbyEntities(cur, 1.0, 1.0, 1.0)) {
-                    if (e instanceof LivingEntity le && !e.equals(player) && !(le instanceof Player)) {
-                        target = le; break;
+                    if (isValidTarget(player, e)) {
+                        target = (LivingEntity) e; 
+                        break;
                     }
                 }
 
@@ -387,13 +387,6 @@ public class FlorentinoSkill implements Listener {
 
         target.setGlowing(true);
 
-        UUID playerUUID = player.getUniqueId();
-        UUID targetUUID = target.getUniqueId();
-
-        // Xóa Mark cũ của Target này nếu có trước đó
-        removeMark(targetUUID, player, state);
-
-        // Tạo ArmorStand hiển thị Chữ Marked
         ArmorStand marker = (ArmorStand) world.spawnEntity(hitLoc.clone().add(0, target.getHeight() + 0.4, 0), EntityType.ARMOR_STAND);
         marker.setCustomName(color("&c⚔ &4Marked (+30% Dame)"));
         marker.setCustomNameVisible(true);
@@ -401,7 +394,8 @@ public class FlorentinoSkill implements Listener {
         marker.setVisible(false);
         marker.setSmall(true);
 
-        activeMarkers.put(targetUUID, marker);
+        UUID playerUUID = player.getUniqueId();
+        UUID targetUUID = target.getUniqueId();
         markedTargets.computeIfAbsent(playerUUID, k -> new HashSet<>()).add(targetUUID);
 
         state.addPassiveStack("FLORENTINO_CC_IMMUNE", 1, ULT_DURATION);
@@ -409,89 +403,26 @@ public class FlorentinoSkill implements Listener {
         world.playSound(hitLoc, Sound.ENTITY_ENDER_DRAGON_HURT, 0.5f, 1.6f);
         player.sendActionBar(color("&5✦ &d&lTài Hoa! &7[Ghim Mục Tiêu +30% Dame] &a[Miễn CC 14s]"));
 
-        BukkitTask task = new BukkitRunnable() {
+        new BukkitRunnable() {
             int ticks = 0;
 
             @Override
             public void run() {
                 ticks += 2;
+                if (ticks >= ULT_DURATION || !target.isValid() || target.isDead() || !player.isOnline()) {
+                    if (marker.isValid()) marker.remove();
+                    if (target.isValid()) target.setGlowing(false);
 
-                // 🚨 ĐIỀU KIỆN HUỶ VÀ XÓA HOLOGRAM AN TOÀN 🚨
-                if (ticks >= ULT_DURATION || target == null || !target.isValid() || target.isDead() || !player.isOnline()) {
-                    removeMark(targetUUID, player, state);
-                    if (target != null && target.isValid()) {
-                        target.setGlowing(false);
-                    }
-                    this.cancel();
+                    Set<UUID> set = markedTargets.get(playerUUID);
+                    if (set != null) set.remove(targetUUID);
+                    state.clearPassiveStack("FLORENTINO_CC_IMMUNE");
+                    cancel();
                     return;
                 }
 
-                // Cập nhật vị trí chữ đi theo Target
                 marker.teleport(target.getLocation().add(0, target.getHeight() + 0.4, 0));
             }
         }.runTaskTimer(plugin, 0L, 2L);
-
-        activeTasks.put(targetUUID, task);
-    }
-
-    /**
-     * Hàm xóa Mark & ArmorStand triệt để
-     */
-    private void removeMark(UUID targetUUID, Player player, PlayerWeaponState state) {
-        // Hủy Task
-        BukkitTask task = activeTasks.remove(targetUUID);
-        if (task != null) {
-            task.cancel();
-        }
-
-        // Xóa ArmorStand
-        ArmorStand marker = activeMarkers.remove(targetUUID);
-        if (marker != null && marker.isValid()) {
-            marker.remove();
-        }
-
-        // Xóa khỏi danh sách Marked
-        if (player != null) {
-            Set<UUID> set = markedTargets.get(player.getUniqueId());
-            if (set != null) {
-                set.remove(targetUUID);
-            }
-        }
-
-        if (state != null) {
-            state.clearPassiveStack("FLORENTINO_CC_IMMUNE");
-        }
-    }
-
-    // ── EVENT LISTENERS FIX LỖI KẸT HOLOGRAM ─────────────────────────────────
-
-    @EventHandler
-    public void onEntityDeath(EntityDeathEvent event) {
-        UUID deadId = event.getEntity().getUniqueId();
-        if (activeMarkers.containsKey(deadId)) {
-            removeMark(deadId, null, null);
-        }
-    }
-
-    @EventHandler
-    public void onChunkUnload(ChunkUnloadEvent event) {
-        for (Entity entity : event.getChunk().getEntities()) {
-            if (activeMarkers.containsKey(entity.getUniqueId())) {
-                removeMark(entity.getUniqueId(), null, null);
-            }
-        }
-    }
-
-    /**
-     * Hàm dọn dẹp khi Reload Server
-     */
-    public void cleanupAll() {
-        for (UUID targetId : new HashSet<>(activeMarkers.keySet())) {
-            removeMark(targetId, null, null);
-        }
-        activeMarkers.clear();
-        activeTasks.clear();
-        markedTargets.clear();
     }
 
     // ── Helper ───────────────────────────────────────────────────────────────
