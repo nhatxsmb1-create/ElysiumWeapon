@@ -78,11 +78,12 @@ public class FlorentinoSkill {
         return ULT_CD_KEY;
     }
 
-    // ── HỆ THỐNG GÂY SÁT THƯƠNG TRIỆT HẠ LỖI BẤT TỬ (NMS FIX) ─────────────────
+    // ── CƠ CHẾ SÁT THƯƠNG MỚI: DIRECT HP OVERRIDE (CHỐNG NUỐT ĐÒN 100%) ─────────
 
     private void dealSkillDamage(LivingEntity target, Player damager, double physicalDmg, double percentHpTrueDmg) {
         isInternalDamage = true;
         try {
+            // 1. Tính toán sát thương theo Mastery và Trạng thái Marked
             if (isMarked(damager, target)) {
                 physicalDmg *= 1.30;
                 percentHpTrueDmg *= 1.30;
@@ -95,29 +96,36 @@ public class FlorentinoSkill {
             double trueDamage = (targetMaxHp * (percentHpTrueDmg / 100.0));
             double totalDamage = physicalDmg + trueDamage;
 
-            // 1. Xóa sạch khung bất tử và sát thương nhận trước đó
-            target.setMaximumNoDamageTicks(0);
-            target.setNoDamageTicks(0);
-            target.setLastDamage(0.0);
+            // 2. Lấy HP hiện tại và trừ trực tiếp (Bỏ qua 100% bất tử NMS / Paper)
+            double currentHp = target.getHealth();
+            double finalHp = currentHp - totalDamage;
 
-            // 2. Gây sát thương chính thức
-            target.damage(totalDamage, damager);
+            // 3. Hiệu ứng giật đỏ người (Mô phỏng đòn đánh thật)
+            target.playEffect(EntityEffect.HURT);
 
-            // 3. Reset ngay trong tick hiện tại
-            target.setNoDamageTicks(0);
-            target.setLastDamage(0.0);
-            target.setMaximumNoDamageTicks(20);
+            // 4. Xử lý trừ máu & ghi nhận Kill / Aggro cho Server
+            if (finalHp <= 0) {
+                // Nếu đòn đánh kết liễu target -> Gọi dame lớn để Server ghi nhận Kill chính xác cho Damager
+                target.setNoDamageTicks(0);
+                target.damage(999999.0, damager);
+            } else {
+                // Trừ máu trực tiếp
+                target.setHealth(Math.max(0.1, finalHp));
 
-            // 4. Bắt buộc 1-tick delay để đè bẹp NMS End-of-Tick Reset (Gốc rễ gây nuốt đòn)
-            Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                if (target.isValid() && !target.isDead()) {
-                    target.setNoDamageTicks(0);
-                    target.setLastDamage(0.0);
-                }
-            }, 1L);
+                // Gây 1 lượng dame giả lập cực nhỏ để server ghi nhận Combat Tag & Aggro Mob
+                target.setNoDamageTicks(0);
+                target.damage(0.0001, damager);
+                target.setNoDamageTicks(0);
+            }
 
+            // 5. Hiệu ứng True Damage
             if (percentHpTrueDmg > 0) {
-                target.getWorld().spawnParticle(Particle.DAMAGE_INDICATOR, target.getLocation().add(0, 1.2, 0), (int) Math.max(1, percentHpTrueDmg), 0.2, 0.2, 0.2, 0.1);
+                target.getWorld().spawnParticle(
+                    Particle.DAMAGE_INDICATOR, 
+                    target.getLocation().add(0, 1.2, 0), 
+                    (int) Math.max(1, percentHpTrueDmg), 
+                    0.2, 0.2, 0.2, 0.1
+                );
             }
         } finally {
             isInternalDamage = false;
