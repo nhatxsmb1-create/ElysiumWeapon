@@ -384,7 +384,7 @@ public class FlorentinoSkill {
         }
 
         world.playSound(hitLoc, Sound.ENTITY_ENDER_DRAGON_HURT, 0.6f, 1.5f);
-        player.sendActionBar(color("&5✦ &d&lTài Hoa! &7[Ghim +30% Dame] &a&l[BÁ THỂ MIỄN KHỐNG 14S]"));
+        player.sendActionBar(color("&5✦ &d&lTài Hoa! &7[Ghim +30% Dame] &a&l[BÁ THỂ + KHÁNG 40% DAME NGOÀI 14S]"));
 
         // Runnable 1: Theo dõi ArmorStand Mark trên đầu quái
         new BukkitRunnable() {
@@ -406,7 +406,7 @@ public class FlorentinoSkill {
             }
         }.runTaskTimer(plugin, 0L, 2L);
 
-        // Runnable 2: Hào Quang Miễn Khống Chế (Sử dụng Particle.WITCH thay cho Particle.SPELL_WITCH)
+        // Runnable 2: Hào Quang Miễn Khống Chế
         new BukkitRunnable() {
             int ticks = 0;
             @Override
@@ -483,7 +483,8 @@ public class FlorentinoSkill {
         }
     }
 
-    public boolean isMarked(Player player, LivingEntity target) {
+    public boolean isMarked(Player player, Entity target) {
+        if (!(target instanceof LivingEntity)) return false;
         Set<UUID> set = markedTargets.get(player.getUniqueId());
         return set != null && set.contains(target.getUniqueId());
     }
