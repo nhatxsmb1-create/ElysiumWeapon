@@ -46,7 +46,7 @@ public class ElysiumWeaponListener implements Listener {
         boolean rightClick = action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK;
         boolean leftClick  = action == Action.LEFT_CLICK_AIR  || action == Action.LEFT_CLICK_BLOCK;
 
-        // ⚔️ Xử lý riêng cho Kiếm Florentino (Giữ nguyên tuyệt đối)
+        // ⚔️ Xử lý riêng cho Kiếm Florentino
         if ("FLORENTINO_SWORD".equalsIgnoreCase(weapon.getId())) {
             
             // Chiêu 1: Thưởng Hoa (Phải chuột)
@@ -98,17 +98,26 @@ public class ElysiumWeaponListener implements Listener {
 
         PlayerWeaponState state = plugin.getWeaponManager().getState(player);
 
-        // ⚔️ Xử lý riêng cho Kiếm Florentino (Giữ nguyên tuyệt đối)
+        // ⚔️ Xử lý riêng cho Kiếm Florentino (FIX TRIỆT ĐỂ BẮT ĐẦU TỪ ĐÂY)
         if ("FLORENTINO_SWORD".equalsIgnoreCase(weapon.getId())) {
+            
+            // Ép xóa i-frame bất tử của target trước khi check đòn
+            target.setNoDamageTicks(0);
+
+            // 1. Kiểm tra lướt nhặt hoa
             if (florentinoSkill.handleHitAndDash(player, target, state)) {
+                e.setCancelled(true); // Hủy đòn đánh thường để dùng sát thương & lướt của Florentino
                 return;
             }
+
+            // 2. Kiểm tra Thưởng Kiếm (Skill 2)
             if (florentinoSkill.onHitDuringVortex(player, target, state)) {
+                e.setCancelled(true); // Hủy đòn đánh thường để dùng sát thương & hiệu ứng Thưởng Kiếm
                 return;
             }
         }
 
-        // Thiết lập dame căn bản & tính toán Nội tại
+        // Thiết lập dame căn bản & tính toán Nội tại cho vũ khí thường
         e.setDamage(weapon.getBaseDamage());
         handlePassive(player, weapon, target, e);
 
@@ -196,7 +205,6 @@ public class ElysiumWeaponListener implements Listener {
     public void onWeaponSwitch(PlayerItemHeldEvent e) {
         Player player = e.getPlayer();
 
-        // Gom nhóm thao tác đổi vũ khí vào 1 runnable duy nhất để tránh gọicall lặp
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             if (!player.isOnline()) return;
             
