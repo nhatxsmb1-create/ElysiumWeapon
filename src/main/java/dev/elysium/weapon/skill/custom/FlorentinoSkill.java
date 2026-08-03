@@ -32,7 +32,7 @@ public class FlorentinoSkill {
     public static final int    ULT_CD_S      = 15;
     public static final int    ULT_DURATION  = 280;
 
-    private static final long DASH_COOLDOWN_MS = 250L;
+    private static final long DASH_COOLDOWN_MS = 200L;
     private final Map<UUID, Long> lastDashTimes = new HashMap<>();
 
     private final Map<UUID, Set<UUID>> markedTargets = new HashMap<>();
@@ -78,7 +78,7 @@ public class FlorentinoSkill {
         return ULT_CD_KEY;
     }
 
-    // Dùng riêng cho các đòn sát thương gián tiếp (Skill 1 ném trúng / Ult ghim)
+    // Đòn đánh gián tiếp từ C1 / Chiêu cuối
     private void dealSkillDamage(LivingEntity target, Player damager, double physicalDmg, double percentHpTrueDmg) {
         isInternalDamage = true;
         try {
@@ -100,7 +100,7 @@ public class FlorentinoSkill {
                 target.getWorld().spawnParticle(Particle.DAMAGE_INDICATOR, target.getLocation().add(0, 1.2, 0), (int) Math.max(1, percentHpTrueDmg), 0.2, 0.2, 0.2, 0.1);
             }
 
-            // Mẹo: Reset bất tử cho nạn nhân ở tick sau
+            // Reset noDamageTicks ở tick sau
             Bukkit.getScheduler().runTask(plugin, () -> {
                 if (target.isValid()) target.setNoDamageTicks(0);
             });
@@ -220,20 +220,23 @@ public class FlorentinoSkill {
             land.setPitch(player.getLocation().getPitch());
         }
 
-        player.teleport(land);
-        player.getWorld().playSound(land, Sound.ENTITY_ENDERMAN_TELEPORT, 0.4f, 1.5f);
-        player.getWorld().spawnParticle(Particle.CHERRY_LEAVES, land.clone().add(0, 1, 0), 6, 0.3, 0.3, 0.3, 0.02);
-
+        // TÍNH DAME VÀ GÁN THẲNG VÀO EVENT ĐỒN CHÉM HIỆN TẠI
         double baseDamage = getBaseDamage();
         double dashDamage = baseDamage * 1.3;
-
         if (isMarked(player, target)) dashDamage *= 1.30;
         dashDamage *= getMasteryDamageBonus(player);
 
-        // Gán sát thương lướt thẳng vào đòn đánh hiện tại
         event.setDamage(dashDamage);
 
-        pickupFlower(player, target, flower, state);
+        // FIX CHÍNH: Teleport & Nhặt hoa được hoãn sang TICK SAU (1 tick delay)
+        // Giúp Minecraft hoàn tất xong đòn chém hiện tại -> Không bị Anti-Cheat / PvP packet lock chặn
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            if (!player.isOnline()) return;
+            player.teleport(land);
+            player.getWorld().playSound(land, Sound.ENTITY_ENDERMAN_TELEPORT, 0.4f, 1.5f);
+            player.getWorld().spawnParticle(Particle.CHERRY_LEAVES, land.clone().add(0, 1, 0), 6, 0.3, 0.3, 0.3, 0.02);
+            pickupFlower(player, target, flower, state);
+        });
     }
 
     // ── Nhặt hoa ──────────────────────────────────────────────────────────────
@@ -312,7 +315,6 @@ public class FlorentinoSkill {
         if (isMarked(player, target)) finalDmg *= 1.30;
         finalDmg *= getMasteryDamageBonus(player);
 
-        // Gán trực tiếp sát thương Thưởng Kiếm vào event đòn đánh hiện tại
         event.setDamage(finalDmg);
 
         for (int i = 0; i < 8; i++) {
@@ -382,7 +384,11 @@ public class FlorentinoSkill {
         Location land = hitLoc.clone().add(-player.getLocation().getDirection().getX(), 0, -player.getLocation().getDirection().getZ());
         land.setYaw(player.getLocation().getYaw());
         land.setPitch(player.getLocation().getPitch());
-        player.teleport(land);
+
+        // Hoãn teleport Ult sang tick sau để mượt hơn
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            if (player.isOnline()) player.teleport(land);
+        });
 
         dealSkillDamage(target, player, getBaseDamage() * 2.0);
         spawnFlowersAt(hitLoc, world, player);
