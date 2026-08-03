@@ -16,20 +16,20 @@ weapons:
       - "&7Linh hoạt – Cân bằng – Bền bỉ."
     base-damage: 15.0
     base-speed: 1.6
-    mana-cost-skill1: 8        # Lướt chiêu tốn cực ít Mana
+    mana-cost-skill1: 8
     mana-cost-skill2: 15
     mana-cost-ultimate: 30
 
     passive:
       id: MOMENTUM
-      description: "Mỗi lần giết kẻ thù tăng 5% dame trong 5s, cộng dồn tối đa 3 lần."
+      description: "Mỗi lần diệt kẻ thù +5% Dame trong 5s (Cộng dồn 3 lần)."
       stack-max: 3
       stack-duration: 100
 
     skill1:
       id: BLADE_DASH
       name: "&cLướt Kiếm"
-      description: "Lao về phía trước, đâm 160% dame theo đường thẳng."
+      description: "Lao tới trước đâm gây 160% Dame theo đường thẳng."
       cooldown: 6
       damage-multiplier: 1.6
       dash-distance: 6.0
@@ -40,7 +40,7 @@ weapons:
     skill2:
       id: SPIN_SLASH
       name: "&cXoáy Phong"
-      description: "Quay 360 độ, gây 130% dame cho tất cả kẻ thù xung quanh."
+      description: "Xoay kiếm 360 độ, gây 130% Dame cho kẻ thù xung quanh."
       cooldown: 9
       damage-multiplier: 1.3
       radius: 4.0
@@ -51,7 +51,7 @@ weapons:
     ultimate:
       id: SAKURA_BLOOM
       name: "&c&lSakura Bloom"
-      description: "Tung 5 lưỡi kiếm theo hình hoa, mỗi lưỡi 200% dame."
+      description: "Tung 5 lưỡi kiếm theo hình hoa, mỗi lưỡi gây 200% Dame."
       cooldown: 35
       damage-multiplier: 2.0
       projectile-count: 5
@@ -64,7 +64,7 @@ weapons:
       window: 1500
       id: TRIPLE_SLASH
       name: "&cBa Kiếm Liên Hoàn"
-      description: "3 nhát kiếm nhanh: 90% / 110% / 150% dame."
+      description: "3 nhát chém nhanh: 90% / 110% / 150% Dame."
       damages: [0.9, 1.1, 1.5]
       animation: TRIPLE_SLASH
       particle: CRIT
@@ -87,14 +87,14 @@ weapons:
 
     passive:
       id: HEAVY_BLOW
-      description: "Mỗi 4 lần đánh thường, đòn tiếp theo gây Stun 1.5s."
+      description: "Mỗi 4 đòn đánh thường, đòn tiếp theo gây Choáng 1.5s."
       stun-duration: 30
       charge-count: 4
 
     skill1:
       id: GROUND_SLAM
       name: "&6Trảm Địa"
-      description: "Đập kiếm xuống đất, gây AOE 240% dame và hất văng."
+      description: "Đập kiếm xuống đất, gây 240% Dame AOE và hất văng kẻ thù."
       cooldown: 8
       damage-multiplier: 2.4
       radius: 5.0
@@ -106,7 +106,7 @@ weapons:
     skill2:
       id: WAR_CRY
       name: "&6Chiến Hống"
-      description: "Hú lớn, tăng 40% dame trong 6s và gây Fear kẻ thù xung quanh."
+      description: "Hú lớn +40% Dame trong 6s và gây Hốt Hoảng cho kẻ thù."
       cooldown: 16
       damage-buff: 0.40
       buff-duration: 120
@@ -119,7 +119,7 @@ weapons:
     ultimate:
       id: TITAN_FALL
       name: "&6&lTitan Fall"
-      description: "Phóng lên cao rồi dập xuống, gây 500% dame rộng 8m."
+      description: "Phóng lên cao dập xuống, gây 500% Dame trong vùng 8m."
       cooldown: 45
       damage-multiplier: 5.0
       radius: 8.0
@@ -132,7 +132,7 @@ weapons:
       window: 2000
       id: HEAVY_COMBO
       name: "&6Song Truy Kích"
-      description: "2 nhát nặng: 180% rồi 280% dame."
+      description: "2 nhát nặng: 180% rồi 280% Dame."
       damages: [1.8, 2.8]
       stun-chance: 0.35
       animation: HEAVY_COMBO
@@ -149,16 +149,16 @@ weapons:
     model-data: 2001
     lore:
       - "&7Trượng của Bà Chúa Băng Giá."
-      - "&7Khống chế diện rộng – Sát thương phép dồn lớn."
+      - "&7Khống chế diện rộng – Dồn sát thương phép."
     base-damage: 14.0
     base-speed: 1.2
-    mana-cost-skill1: 25       # Xả xấp xỉ 8 lần mới cạn Mana
+    mana-cost-skill1: 25
     mana-cost-skill2: 45
     mana-cost-ultimate: 90
 
     passive:
       id: FROSTBITE
-      description: "Đòn đánh có 20% gây Chill. Đủ 3 tích trữ = Freeze 2s."
+      description: "Đòn đánh có 20% gây Băng Lạnh. Đủ 3 tích trữ = Đóng Băng 2s."
       chill-chance: 0.2
       freeze-stacks: 3
       freeze-duration: 40
@@ -166,7 +166,7 @@ weapons:
     skill1:
       id: ICE_LANCE
       name: "&bBăng Thương"
-      description: "Phóng giáo băng xuyên kẻ thù, gây 200% dame và Chill."
+      description: "Phóng giáo băng xuyên thấu, gây 200% Dame và Băng Lạnh."
       cooldown: 5
       damage-multiplier: 2.0
       pierce: true
@@ -177,7 +177,7 @@ weapons:
     skill2:
       id: FROST_NOVA
       name: "&bBăng Nova"
-      description: "Phát nổ băng giá, Freeze toàn bộ kẻ thù trong 3.5m."
+      description: "Bùng nổ băng giá, Đóng Băng toàn bộ kẻ thù trong 3.5m."
       cooldown: 12
       radius: 3.5
       freeze-duration: 40
@@ -188,7 +188,7 @@ weapons:
     ultimate:
       id: ABSOLUTE_ZERO
       name: "&b&lAbsolute Zero"
-      description: "Tạo vùng băng 12m. Kẻ thù bị làm chậm mạnh, sau 5s nổ gây 400% dame."
+      description: "Vùng băng 12m làm chậm mạnh, sau 5s nổ gây 400% Dame."
       cooldown: 50
       radius: 12.0
       duration: 100
@@ -203,7 +203,7 @@ weapons:
       window: 2000
       id: FROST_BARRAGE
       name: "&bMưa Đá Băng"
-      description: "Phóng 3 viên đá băng, mỗi viên 80% dame."
+      description: "Phóng 3 viên đá băng, mỗi viên gây 80% Dame."
       damages: [0.8, 0.8, 0.8]
       chill-chance: 0.15
       animation: BARRAGE
@@ -229,14 +229,14 @@ weapons:
 
     passive:
       id: EAGLE_EYE
-      description: "Đứng yên 1.5s trước khi bắn: tăng 40% dame đòn tiếp theo."
+      description: "Đứng yên 1.5s trước khi bắn: +40% Dame đòn tiếp theo."
       stand-still-time: 30
       damage-bonus: 0.4
 
     skill1:
       id: PIERCING_SHOT
       name: "&aXuyên Xạ"
-      description: "Bắn tên xuyên mục tiêu trên đường thẳng, gây 150% dame."
+      description: "Bắn tên xuyên mục tiêu trên đường thẳng, gây 150% Dame."
       cooldown: 6
       damage-multiplier: 1.5
       pierce: true
@@ -247,7 +247,7 @@ weapons:
     skill2:
       id: RAIN_OF_ARROWS
       name: "&aMưa Tên"
-      description: "Mưa 12 mũi tên xuống vùng 6m, mỗi mũi tên gây 70% dame."
+      description: "Mưa 12 mũi tên xuống vùng 6m, mỗi mũi tên gây 70% Dame."
       cooldown: 14
       arrow-count: 12
       radius: 6.0
@@ -260,7 +260,7 @@ weapons:
     ultimate:
       id: ELVEN_STORM
       name: "&a&lElven Storm"
-      description: "Tụ lực 3s bắn mũi tên siêu đại: 600% dame, xuyên giáp."
+      description: "Tụ lực 3s bắn tên siêu đại: 600% Dame, Xuyên Giáp."
       cooldown: 45
       charge-time: 60
       damage-multiplier: 6.0
@@ -275,7 +275,7 @@ weapons:
       window: 3000
       id: RAPID_FIRE
       name: "&aRapid Fire"
-      description: "Bắn 4 tên cực nhanh liên tiếp, mỗi tên 60% dame."
+      description: "Bắn 4 tên cực nhanh liên tiếp, mỗi tên 60% Dame."
       damages: [0.6, 0.6, 0.6, 0.6]
       animation: RAPID_ARROWS
       particle: CRIT
@@ -300,14 +300,14 @@ weapons:
 
     passive:
       id: LETHAL_TEMPO
-      description: "Đánh từ phía sau +50% dame. Diệt mục tiêu hồi 15% HP."
+      description: "Đánh từ phía sau +50% Dame. Diệt mục tiêu hồi 15% HP."
       backstab-multiplier: 1.5
       kill-heal-percent: 0.15
 
     skill1:
       id: SHADOW_STEP
       name: "&5Bộ Bóng"
-      description: "Biến mất đằng sau kẻ thù, chém ngay 200% dame."
+      description: "Tốc biến sau lưng kẻ thù, chém ngay 200% Dame."
       cooldown: 7
       damage-multiplier: 2.0
       animation: SHADOW_TELEPORT
@@ -317,7 +317,7 @@ weapons:
     skill2:
       id: BLADE_STORM
       name: "&5Bão Kiếm"
-      description: "Chém xoay 5 lần liên tiếp trong 2s, mỗi lần 90% dame."
+      description: "Chém xoay 5 lần liên tiếp trong 2s, mỗi lần 90% Dame."
       cooldown: 12
       hit-count: 5
       damage-multiplier: 0.9
@@ -329,7 +329,7 @@ weapons:
     ultimate:
       id: ISSEN
       name: "&5&lIssen - Nhất Quang"
-      description: "Ẩn thân 1s. Đòn đánh tiếp theo trong 3s gây 650% dame xuyên giáp."
+      description: "Ẩn thân 1s. Đòn chém tiếp theo gây 650% Dame Xuyên Giáp."
       cooldown: 40
       invisibility-duration: 20
       speed-boost: 2
@@ -345,45 +345,56 @@ weapons:
       window: 1200
       id: IAIDO
       name: "&5Bật Đồ - Iai"
-      description: "Rút kiếm - Chém - Tra kiếm: 80% / 250% (Xuyên giáp) / 80%."
+      description: "Rút kiếm - Chém - Tra kiếm: 80% / 250% (Xuyên Giáp) / 80%."
       damages: [0.8, 2.5, 0.8]
       second-hit-ignore-armor: true
       animation: IAIDO_COMBO
       particle: CRIT
       sound: ENTITY_PLAYER_ATTACK_CRIT
 
-  # ── FLORENTINO (Không dùng Mana) ───────────────────────────────────────────
+  # ── FLORENTINO (Không Dùng Mana) ───────────────────────────────────────────
 
   FLORENTINO_SWORD:
     display-name: "&d&lKiếm Florentino"
     type: SWORD
-    class-affinity: NONE
+    class-affinity: ASSASSIN
     material: GOLDEN_SWORD
     model-data: 5001
     unbreakable: true
     hide-flags:
       - HIDE_UNBREAKABLE
       - HIDE_ATTRIBUTES
-    base-damage: 12.0
-    base-speed: 1.6
+    lore:
+      - "&7Thánh Kiếm Kiêu Hãnh."
+      - "&7Múa hoa – Sát thương chuẩn – Cơ động tuyệt đối."
+    base-damage: 18.0
+    base-speed: 1.8
     mana-cost-skill1: 0
     mana-cost-skill2: 0
+    mana-cost-ultimate: 0
 
     passive:
-      id: FLORENTINO_READY
-      description: "Thưởng Kiếm - Nhặt hoa: Đòn tiếp Lướt + Hồi 8% Máu + -1.5s CD C1"
-      cooldown-reduction-skill1: 1.5
+      id: BUOC_HOA
+      name: "&d&lKiếm Phong &7(Bước Hoa)"
+      description: "Đến gần hoa (2.5m) tự hút: Hồi 8% HP, -1.5s CD C1. Click Trái Lướt 4m gây 140% Dame + 4% HP Sát thương chuẩn."
 
     skill1:
       id: FLORENTINO_THROW
-      name: "Thưởng Hoa"
-      description: "Ném 3 hoa xung quanh (Gây Choáng 0.5s)"
-      cooldown: 6
+      name: "&dThưởng Hoa"
+      description: "Phóng hoa gây 100% Dame, Trói chân 0.75s và tạo 3 hoa xung quanh mục tiêu."
+      cooldown: 7
       mana-cost: 0
 
     skill2:
+      id: FLORENTINO_COMBO
+      name: "&dThưởng Kiếm"
+      description: "Combo chém 3 nhịp:\n&7- Nhịp 1: 100% Dame + 2% HP ST Chuẩn (Slow 30%)\n&7- Nhịp 2: 120% Dame + 4% HP ST Chuẩn (Hất Tung)\n&7- Nhịp 3: 180% Dame + 6% HP ST Chuẩn (Chí Mạng)"
+      cooldown: 0
+      mana-cost: 0
+
+    ultimate:
       id: FLORENTINO_ULT
-      name: "Tài Hoa"
-      description: "Ghim mục tiêu (+30% Dame, x2 Hồi máu, Miễn khống 14s)"
-      cooldown: 14
+      name: "&d&lTài Hoa"
+      description: "Ghim mục tiêu gây 220% Dame + 5% HP ST Chuẩn, tạo 3 hoa. Nhận Miễn Khống 14s & +30% Dame lên mục tiêu ghim."
+      cooldown: 15
       mana-cost: 0
