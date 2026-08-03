@@ -5,6 +5,7 @@ import dev.elysium.weapon.weapon.PlayerWeaponState;
 import dev.elysium.weapon.weapon.WeaponData;
 import org.bukkit.*;
 import org.bukkit.entity.*;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
@@ -22,16 +23,15 @@ public class FlorentinoSkill {
     public static final String CD_KEY        = "FLORENTINO_PASSIVE_CD";
 
     public static final String SKILL1_CD     = "FLORENTINO_SKILL1_CD";
-    public static final int    SKILL1_CD_S   = 7;    // giay
+    public static final int    SKILL1_CD_S   = 7;
 
     public static final String BUOC_HOA_KEY  = "FLORENTINO_BUOC_HOA";
     public static final String VORTEX_KEY    = "FLORENTINO_VORTEX";
 
     public static final String ULT_CD_KEY    = "FLORENTINO_ULT_CD";
-    public static final int    ULT_CD_S      = 15;   // giay
-    public static final int    ULT_DURATION  = 280;  // tick = 14s
+    public static final int    ULT_CD_S      = 15;
+    public static final int    ULT_DURATION  = 280;
 
-    // Cooldown lướt hoa (250ms)
     private static final long DASH_COOLDOWN_MS = 250L;
     private final Map<UUID, Long> lastDashTimes = new HashMap<>();
 
@@ -53,7 +53,7 @@ public class FlorentinoSkill {
     private boolean isValidTarget(Player caster, Entity entity) {
         if (!(entity instanceof LivingEntity target) || entity.equals(caster)) return false;
         if (target.isDead() || !target.isValid()) return false;
-        if (target.hasMetadata("NPC")) return false; // Bỏ qua NPC
+        if (target.hasMetadata("NPC")) return false;
         
         if (target instanceof Player p) {
             return p.getGameMode() == GameMode.SURVIVAL || p.getGameMode() == GameMode.ADVENTURE;
@@ -61,7 +61,6 @@ public class FlorentinoSkill {
         return true;
     }
 
-    // Lấy ID Cooldown Skill 1 để ActionBar nhận diện được
     private String getSkill1Id(Player player) {
         WeaponData wd = plugin.getWeaponManager().getHeldWeaponData(player);
         if (wd != null && wd.getSkill1() != null) {
@@ -70,7 +69,6 @@ public class FlorentinoSkill {
         return SKILL1_CD;
     }
 
-    // Lấy ID Cooldown Ult/Skill 2 để ActionBar nhận diện được
     private String getUltId(Player player) {
         WeaponData wd = plugin.getWeaponManager().getHeldWeaponData(player);
         if (wd != null) {
@@ -80,8 +78,7 @@ public class FlorentinoSkill {
         return ULT_CD_KEY;
     }
 
-    // ── TỐI ƯU CÔNG THỨC DAME & FIX NO DAMAGE TICKS FOR PLAYER ───────────────
-
+    // Dùng riêng cho các đòn sát thương gián tiếp (Skill 1 ném trúng / Ult ghim)
     private void dealSkillDamage(LivingEntity target, Player damager, double physicalDmg, double percentHpTrueDmg) {
         isInternalDamage = true;
         try {
@@ -90,7 +87,6 @@ public class FlorentinoSkill {
                 percentHpTrueDmg *= 1.30;
             }
 
-            // Ap dung Mastery damage bonus cua FLORENTINO_SWORD
             double masteryBonus = getMasteryDamageBonus(damager);
             physicalDmg *= masteryBonus;
 
@@ -98,20 +94,21 @@ public class FlorentinoSkill {
             double trueDamage = (targetMaxHp * (percentHpTrueDmg / 100.0));
             double totalDamage = physicalDmg + trueDamage;
 
-            // FIX CHÍNH: Xóa ngay thời gian bất tử của Player target để đòn dồn combo ăn sát thương 100%
-            target.setNoDamageTicks(0);
-
             target.damage(totalDamage, damager);
 
             if (percentHpTrueDmg > 0) {
                 target.getWorld().spawnParticle(Particle.DAMAGE_INDICATOR, target.getLocation().add(0, 1.2, 0), (int) Math.max(1, percentHpTrueDmg), 0.2, 0.2, 0.2, 0.1);
             }
+
+            // Mẹo: Reset bất tử cho nạn nhân ở tick sau
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                if (target.isValid()) target.setNoDamageTicks(0);
+            });
         } finally {
             isInternalDamage = false;
         }
     }
 
-    /** Lay Mastery damage bonus - SKILL1 slot */
     private double getMasteryDamageBonus(Player player) {
         try {
             return plugin.getWeaponMastery().getDamageBonus(player, "FLORENTINO_SWORD", "SKILL1");
@@ -154,7 +151,6 @@ public class FlorentinoSkill {
             return;
         }
 
-        // Ap dung Mastery cooldown reduction cho Skill1
         int cdModifier = plugin.getWeaponMastery().getCooldownModifier(player, "FLORENTINO_SWORD", "SKILL1");
         int finalCd = Math.max(1, SKILL1_CD_S + cdModifier);
         state.setCooldown(s1Id, finalCd);
@@ -183,7 +179,6 @@ public class FlorentinoSkill {
                     cancel();
                     if (hit == null) return;
                     
-                    hit.setNoDamageTicks(0);
                     hit.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 10, 255, false, false, false));
                     hit.addPotionEffect(new PotionEffect(PotionEffectType.JUMP_BOOST, 10, 128, false, false, false));
                     dealSkillDamage(hit, player, getBaseDamage());
@@ -198,7 +193,7 @@ public class FlorentinoSkill {
 
     // ── Lướt nhặt hoa ────────────────────────────────────────────────────────
 
-    public boolean handleHitAndDash(Player player, LivingEntity target, PlayerWeaponState state) {
+    public boolean handleHitAndDash(Player player, LivingEntity target, PlayerWeaponState state, EntityDamageByEntityEvent event) {
         long now = System.currentTimeMillis();
         long lastDash = lastDashTimes.getOrDefault(player.getUniqueId(), 0L);
 
@@ -209,22 +204,20 @@ public class FlorentinoSkill {
 
         lastDashTimes.put(player.getUniqueId(), now);
         state.clearPassiveStack(PASSIVE_KEY);
-        executeDash(player, target, nearest, state);
+        executeDash(player, target, nearest, state, event);
         return true;
     }
 
-    private void executeDash(Player player, LivingEntity target, FlowerEntry flower, PlayerWeaponState state) {
+    private void executeDash(Player player, LivingEntity target, FlowerEntry flower, PlayerWeaponState state, EntityDamageByEntityEvent event) {
         Location flowerLoc = flower.location.clone().add(0.5, 0, 0.5);
-        Location from = player.getLocation();
         Location land = flowerLoc.clone();
 
         if (target != null && target.isValid()) {
             Vector dirToTarget = target.getLocation().add(0, 1, 0).subtract(land).toVector();
             if (dirToTarget.lengthSquared() > 0) land.setDirection(dirToTarget);
-            target.setNoDamageTicks(0); // Bỏ qua bất tử của đối phương khi lướt
         } else {
-            land.setYaw(from.getYaw());
-            land.setPitch(from.getPitch());
+            land.setYaw(player.getLocation().getYaw());
+            land.setPitch(player.getLocation().getPitch());
         }
 
         player.teleport(land);
@@ -232,16 +225,13 @@ public class FlorentinoSkill {
         player.getWorld().spawnParticle(Particle.CHERRY_LEAVES, land.clone().add(0, 1, 0), 6, 0.3, 0.3, 0.3, 0.02);
 
         double baseDamage = getBaseDamage();
-        final double dashDamage = baseDamage * 1.3;
+        double dashDamage = baseDamage * 1.3;
 
-        for (Entity e : player.getWorld().getNearbyEntities(from, 4, 2, 4)) {
-            if (!isValidTarget(player, e)) continue;
-            LivingEntity le = (LivingEntity) e;
-            double t = dotProject(from, flowerLoc, le.getLocation());
-            if (t >= 0 && t <= 1.2 && distToLine(from, flowerLoc, le.getLocation()) < 1.5) {
-                dealSkillDamage(le, player, dashDamage, 3.0);
-            }
-        }
+        if (isMarked(player, target)) dashDamage *= 1.30;
+        dashDamage *= getMasteryDamageBonus(player);
+
+        // Gán sát thương lướt thẳng vào đòn đánh hiện tại
+        event.setDamage(dashDamage);
 
         pickupFlower(player, target, flower, state);
     }
@@ -266,7 +256,6 @@ public class FlorentinoSkill {
         player.setHealth(Math.min(maxHp, player.getHealth() + healAmount));
         player.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 25, 1, false, false, false));
 
-        // Giảm hồi chiêu C1 đi 1.5s & Cập nhật thẳng lên ActionBar
         String s1Id = getSkill1Id(player);
         if (state.isOnCooldown(s1Id) || state.isOnCooldown(SKILL1_CD)) {
             double remaining = state.getCooldownRemaining(s1Id);
@@ -281,7 +270,7 @@ public class FlorentinoSkill {
 
     // ── Chiêu 2 (Thưởng Kiếm) ──────────────────────────────────────────────────
 
-    public boolean onHitDuringVortex(Player player, LivingEntity target, PlayerWeaponState state) {
+    public boolean onHitDuringVortex(Player player, LivingEntity target, PlayerWeaponState state, EntityDamageByEntityEvent event) {
         int stacks = state.getPassiveStack(VORTEX_KEY);
         if (stacks <= 0) return false;
 
@@ -293,33 +282,38 @@ public class FlorentinoSkill {
         Location center = target.getLocation().clone().add(0, 1, 0);
         double baseDmg = getBaseDamage();
 
-        target.setNoDamageTicks(0); // Xóa ticks bất tử trước khi chém Thưởng Kiếm
-
         UUID playerUUID = player.getUniqueId();
         int count = vortexHitCounters.getOrDefault(playerUUID, 0) + 1;
 
+        double finalDmg = baseDmg;
+
         if (count == 1) {
-            dealSkillDamage(target, player, baseDmg * 0.8, 0.0);
+            finalDmg = baseDmg * 0.8;
             target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 30, 1, false, false, false));
             world.playSound(center, Sound.ENTITY_PLAYER_ATTACK_SWEEP, 0.6f, 1.2f);
             player.sendActionBar(color("&d✦ &bThưởng Kiếm 1 &7[Slow]"));
             vortexHitCounters.put(playerUUID, 1);
 
         } else if (count == 2) {
-            dealSkillDamage(target, player, baseDmg * 1.0, 3.0);
+            finalDmg = baseDmg * 1.0;
             target.setVelocity(new Vector(0, 0.35, 0));
             world.playSound(center, Sound.ENTITY_PLAYER_ATTACK_KNOCKBACK, 0.7f, 1.4f);
             player.sendActionBar(color("&d✦ &eThưởng Kiếm 2 &c&l[HẤT TUNG!]"));
             vortexHitCounters.put(playerUUID, 2);
 
         } else {
-            dealSkillDamage(target, player, baseDmg * 1.6, 5.0);
-
+            finalDmg = baseDmg * 1.6;
             world.spawnParticle(Particle.CRIT, target.getLocation().add(0, 1, 0), 15, 0.2, 0.4, 0.2, 0.1);
             world.playSound(center, Sound.BLOCK_ANVIL_LAND, 0.5f, 1.6f);
             player.sendActionBar(color("&d✦ &c&lThưởng Kiếm 3 &4[Chí Mạng + True Dmg]"));
             vortexHitCounters.put(playerUUID, 0);
         }
+
+        if (isMarked(player, target)) finalDmg *= 1.30;
+        finalDmg *= getMasteryDamageBonus(player);
+
+        // Gán trực tiếp sát thương Thưởng Kiếm vào event đòn đánh hiện tại
+        event.setDamage(finalDmg);
 
         for (int i = 0; i < 8; i++) {
             double angle = Math.toRadians((360.0 / 8) * i);
@@ -342,7 +336,6 @@ public class FlorentinoSkill {
             return;
         }
 
-        // Ap dung Mastery cooldown reduction cho Ultimate
         int ultCdModifier = plugin.getWeaponMastery().getCooldownModifier(player, "FLORENTINO_SWORD", "ULTIMATE");
         int finalUltCd = Math.max(1, ULT_CD_S + ultCdModifier);
         state.setCooldown(ultId, finalUltCd);
@@ -391,7 +384,6 @@ public class FlorentinoSkill {
         land.setPitch(player.getLocation().getPitch());
         player.teleport(land);
 
-        target.setNoDamageTicks(0);
         dealSkillDamage(target, player, getBaseDamage() * 2.0);
         spawnFlowersAt(hitLoc, world, player);
 
@@ -518,22 +510,6 @@ public class FlorentinoSkill {
     }
 
     private String color(String s) { return s.replace("&", "\u00a7"); }
-
-    private double dotProject(Location a, Location b, Location p) {
-        double abx = b.getX()-a.getX(), abz = b.getZ()-a.getZ();
-        double apx = p.getX()-a.getX(), apz = p.getZ()-a.getZ();
-        double ab2 = abx*abx + abz*abz;
-        if (ab2 == 0) return 0;
-        return (apx*abx + apz*apz) / ab2;
-    }
-
-    private double distToLine(Location a, Location b, Location p) {
-        double abx = b.getX()-a.getX(), abz = b.getZ()-a.getZ();
-        double apx = p.getX()-a.getX(), apz = p.getZ()-a.getZ();
-        double cross = abx*apz - abz*apx;
-        double ab = Math.sqrt(abx*abx + abz*abz);
-        return ab == 0 ? Math.sqrt(apx*apx+apz*apz) : Math.abs(cross)/ab;
-    }
 
     public static class FlowerEntry {
         public final int      entityId;
