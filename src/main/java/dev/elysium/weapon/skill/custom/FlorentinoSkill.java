@@ -406,7 +406,7 @@ public class FlorentinoSkill {
             }
         }.runTaskTimer(plugin, 0L, 2L);
 
-        // Runnable 2: Hào Quang Miễn Khống Chế (Visual Aura - Đã sửa Particle.WITCH)
+        // Runnable 2: Hào Quang Miễn Khống Chế (Sử dụng Particle.WITCH thay cho Particle.SPELL_WITCH)
         new BukkitRunnable() {
             int ticks = 0;
             @Override
