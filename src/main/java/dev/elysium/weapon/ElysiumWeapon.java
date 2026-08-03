@@ -8,6 +8,7 @@ import dev.elysium.weapon.database.WeaponDatabase;
 import dev.elysium.weapon.gui.GuiListener;
 import dev.elysium.weapon.listener.ElysiumDatabaseListener;
 import dev.elysium.weapon.listener.ElysiumWeaponListener;
+import dev.elysium.weapon.listener.FlorentinoListener; // 👈 Thêm Import này
 import dev.elysium.weapon.mastery.WeaponMastery;
 import dev.elysium.weapon.skill.SkillEngine;
 import dev.elysium.weapon.util.CooldownActionbarTask;
@@ -54,6 +55,7 @@ public class ElysiumWeapon extends JavaPlugin {
         getCommand("weaponadmin").setExecutor(new WeaponAdminCommand(this));
 
         getServer().getPluginManager().registerEvents(new ElysiumWeaponListener(this), this);
+        getServer().getPluginManager().registerEvents(new FlorentinoListener(this), this); // 👈 Đăng ký Listener riêng cho Florentino
         getServer().getPluginManager().registerEvents(new ElysiumDatabaseListener(this), this);
         getServer().getPluginManager().registerEvents(new GuiListener(), this);
 
