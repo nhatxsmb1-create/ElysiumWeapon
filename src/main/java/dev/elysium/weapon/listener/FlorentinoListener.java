@@ -15,7 +15,6 @@ import org.bukkit.event.entity.EntityPotionEffectEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.EquipmentSlot;
-import org.bukkit.potion.PotionEffectType;
 
 public class FlorentinoListener implements Listener {
 
@@ -87,7 +86,7 @@ public class FlorentinoListener implements Listener {
         // Xử lý Florentino bị tấn công khi đang bật Miễn Khống (Anti-Knockback)
         if (e.getEntity() instanceof Player victim) {
             PlayerWeaponState state = plugin.getWeaponManager().getState(victim);
-            if (state != null && state.getPassiveStack("FLORENTINO_CC_IMMUNE") > 0) {
+            if (state != null && state.getPassiveStack(FlorentinoSkill.CC_IMMUNE_BUFF) > 0) {
                 plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
                     victim.setVelocity(victim.getVelocity().setX(0).setZ(0));
                 }, 1L);
@@ -95,33 +94,21 @@ public class FlorentinoListener implements Listener {
         }
     }
 
-    // ── HỆ THỐNG MIỄN KHỐNG CHẾ (CC IMMUNITY) ───────────────────────────────
+    // ── HỆ THỐNG BÁ THỂ MIỄN KHỐNG CHẾ ──────────────────────────────────────
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onPotionEffect(EntityPotionEffectEvent e) {
         if (!(e.getEntity() instanceof Player player)) return;
 
         PlayerWeaponState state = plugin.getWeaponManager().getState(player);
-        if (state != null && state.getPassiveStack("FLORENTINO_CC_IMMUNE") > 0) {
-            if (e.getNewEffect() != null && isNegativeEffect(e.getNewEffect().getType())) {
-                e.setCancelled(true); // Hủy toàn bộ hiệu ứng khống chế bất lợi
+        if (state != null && state.getPassiveStack(FlorentinoSkill.CC_IMMUNE_BUFF) > 0) {
+            if (e.getNewEffect() != null && florentinoSkill.isNegativeEffect(e.getNewEffect().getType())) {
+                e.setCancelled(true);
             }
         }
     }
 
-    private boolean isNegativeEffect(PotionEffectType type) {
-        return type.equals(PotionEffectType.SLOWNESS) ||
-               type.equals(PotionEffectType.BLINDNESS) ||
-               type.equals(PotionEffectType.POISON) ||
-               type.equals(PotionEffectType.WITHER) ||
-               type.equals(PotionEffectType.WEAKNESS) ||
-               type.equals(PotionEffectType.LEVITATION) ||
-               type.equals(PotionEffectType.NAUSEA) ||
-               type.equals(PotionEffectType.DARKNESS) ||
-               type.equals(PotionEffectType.UNLUCK);
-    }
-
-    // ── DỌN DẸP BỘ NHỚ KHI OUT ──────────────────────────────────────────────
+    // ── DỌN DẸP BỘ NHỚ KHI NGUỜI CHƠI THOÁT ──────────────────────────────────
 
     @EventHandler
     public void onQuit(PlayerQuitEvent e) {
