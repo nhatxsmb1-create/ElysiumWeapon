@@ -19,7 +19,7 @@ public class FlorentinoListener implements Listener {
     private final ElysiumWeapon plugin;
     private final FlorentinoSkill florentinoSkill;
 
-    // Nên truyền instance FlorentinoSkill vào constructor thay vì `new` để dùng chung state
+    // Khởi tạo nhận FlorentinoSkill dùng chung instance từ ElysiumWeapon
     public FlorentinoListener(ElysiumWeapon plugin, FlorentinoSkill florentinoSkill) {
         this.plugin = plugin;
         this.florentinoSkill = florentinoSkill;
@@ -53,7 +53,7 @@ public class FlorentinoListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onAttack(EntityDamageByEntityEvent e) {
-        // Chặn vòng lặp vô tận từ target.damage() nội bộ
+        // [QUAN TRỌNG] Tránh vòng lặp lặp vô tận khi hàm target.damage() nội bộ kích hoạt Event này
         if (florentinoSkill.isInternalDamage()) return;
 
         if (!(e.getDamager() instanceof Player player)) return;
@@ -66,13 +66,13 @@ public class FlorentinoListener implements Listener {
 
         // 1. Lướt nhặt hoa (Nội tại)
         if (florentinoSkill.handleHitAndDash(player, target, state)) {
-            e.setCancelled(true); // Hủy đòn đánh tay gốc để tránh x2 dame
+            e.setCancelled(true); // Hủy đòn chém tay mặc định để không bị x2 sát thương / giật combo
             return;
         }
 
         // 2. Thưởng Kiếm (Chiêu 2)
         if (florentinoSkill.onHitDuringVortex(player, target, state)) {
-            e.setCancelled(true); // Hủy đòn đánh tay gốc để tránh x2 dame
+            e.setCancelled(true); // Hủy đòn chém tay mặc định
             return;
         }
     }
