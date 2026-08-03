@@ -24,35 +24,34 @@ public class FlorentinoListener implements Listener {
         this.florentinoSkill = new FlorentinoSkill(plugin);
     }
 
-    // ── Xử lý Click Chiêu 1 & Chiêu Cuối ────────────────────────────────────
+    // ── Click Detection (Dùng Chiêu Florentino) ─────────────────────────────
 
     @EventHandler(priority = EventPriority.HIGH)
-    public void onFlorentinoInteract(PlayerInteractEvent e) {
+    public void onInteract(PlayerInteractEvent e) {
         if (e.getHand() != EquipmentSlot.HAND) return;
-
         Player player = e.getPlayer();
         WeaponData weapon = plugin.getWeaponManager().getHeldWeaponData(player);
         if (weapon == null || !"FLORENTINO_SWORD".equalsIgnoreCase(weapon.getId())) return;
 
+        boolean shift = player.isSneaking();
         Action action = e.getAction();
         boolean rightClick = action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK;
-        boolean shift = player.isSneaking();
 
         if (rightClick) {
-            e.setCancelled(true);
             if (!shift) {
-                florentinoSkill.throwFlowers(player); // C1: Ném hoa
+                e.setCancelled(true);
+                florentinoSkill.throwFlowers(player); // Chiêu 1
             } else {
-                florentinoSkill.castUltimate(player); // Ulti: Tài hoa
+                e.setCancelled(true);
+                florentinoSkill.castUltimate(player); // Ulti
             }
         }
     }
 
-    // ── Xử lý Đòn Chém, Bỏ Bất Tử & Lướt Nhặt Hoa ──────────────────────────
+    // ── Attack Detection (Chém / Lướt / Thưởng Kiếm) ────────────────────────
 
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-    public void onFlorentinoAttack(EntityDamageByEntityEvent e) {
-        // Bỏ qua nếu là dame nội bộ do Skill gây ra (tránh lặp vô tận)
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onAttack(EntityDamageByEntityEvent e) {
         if (florentinoSkill.isInternalDamage()) return;
 
         if (!(e.getDamager() instanceof Player player)) return;
@@ -63,17 +62,13 @@ public class FlorentinoListener implements Listener {
 
         PlayerWeaponState state = plugin.getWeaponManager().getState(player);
 
-        // FIX PVP: Ép Minecraft bỏ tick bất tử riêng cho đòn đánh của Florentino
-        target.setMaximumNoDamageTicks(0);
-        target.setNoDamageTicks(0);
-
-        // 1. Kiểm tra Thưởng Kiếm (Chiêu 2)
-        if (florentinoSkill.onHitDuringVortex(player, target, state, e)) {
+        // Lướt nhặt hoa (Nội tại)
+        if (florentinoSkill.handleHitAndDash(player, target, state)) {
             return;
         }
 
-        // 2. Kiểm tra Lướt nhặt hoa (Nội tại)
-        if (florentinoSkill.handleHitAndDash(player, target, state, e)) {
+        // Thưởng Kiếm (Chiêu 2)
+        if (florentinoSkill.onHitDuringVortex(player, target, state)) {
             return;
         }
     }
