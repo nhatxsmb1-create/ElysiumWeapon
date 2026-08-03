@@ -3,7 +3,6 @@ package dev.elysium.weapon.listener;
 import dev.elysium.weapon.ElysiumWeapon;
 import dev.elysium.weapon.weapon.PlayerWeaponState;
 import dev.elysium.weapon.weapon.WeaponData;
-import org.bukkit.ChatColor;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -30,7 +29,7 @@ public class ElysiumWeaponListener implements Listener {
         WeaponData weapon = plugin.getWeaponManager().getHeldWeaponData(player);
         if (weapon == null) return;
 
-        // 🛑 BỎ QUA FLORENTINO (Đã có FlorentinoListener xử lý riêng)
+        // Lọc bỏ Florentino (Để FlorentinoListener xử lý)
         if ("FLORENTINO_SWORD".equalsIgnoreCase(weapon.getId())) return;
 
         PlayerWeaponState state = plugin.getWeaponManager().getState(player);
@@ -60,7 +59,7 @@ public class ElysiumWeaponListener implements Listener {
         WeaponData weapon = plugin.getWeaponManager().getHeldWeaponData(player);
         if (weapon == null) return;
 
-        // 🛑 BỎ QUA FLORENTINO (Đã có FlorentinoListener xử lý riêng)
+        // Lọc bỏ Florentino (Để FlorentinoListener xử lý)
         if ("FLORENTINO_SWORD".equalsIgnoreCase(weapon.getId())) return;
 
         PlayerWeaponState state = plugin.getWeaponManager().getState(player);
