@@ -11,7 +11,6 @@ import dev.elysium.weapon.listener.ElysiumWeaponListener;
 import dev.elysium.weapon.listener.FlorentinoListener;
 import dev.elysium.weapon.mastery.WeaponMastery;
 import dev.elysium.weapon.skill.SkillEngine;
-import dev.elysium.weapon.skill.custom.FlorentinoSkill; // 👈 Thêm Import này
 import dev.elysium.weapon.util.CooldownActionbarTask;
 import dev.elysium.weapon.weapon.PlayerWeaponState;
 import dev.elysium.weapon.weapon.WeaponManager;
@@ -33,7 +32,6 @@ public class ElysiumWeapon extends JavaPlugin {
     private SkillEngine           skillEngine;
     private WeaponMastery         weaponMastery;
     private CooldownActionbarTask cooldownActionbar;
-    private FlorentinoSkill       florentinoSkill; // 👈 Khai báo FlorentinoSkill
 
     @Override
     public void onEnable() {
@@ -50,7 +48,6 @@ public class ElysiumWeapon extends JavaPlugin {
         skillEngine       = new SkillEngine(this, animationEngine);
         weaponMastery     = new WeaponMastery(this);
         cooldownActionbar = new CooldownActionbarTask(this);
-        florentinoSkill   = new FlorentinoSkill(this); // 👈 Khởi tạo FlorentinoSkill
 
         WeaponAPI.init(this);
 
@@ -58,7 +55,7 @@ public class ElysiumWeapon extends JavaPlugin {
         getCommand("weaponadmin").setExecutor(new WeaponAdminCommand(this));
 
         getServer().getPluginManager().registerEvents(new ElysiumWeaponListener(this), this);
-        getServer().getPluginManager().registerEvents(new FlorentinoListener(this, florentinoSkill), this); // 👈 Truyền 2 tham số
+        getServer().getPluginManager().registerEvents(new FlorentinoListener(this), this);
         getServer().getPluginManager().registerEvents(new ElysiumDatabaseListener(this), this);
         getServer().getPluginManager().registerEvents(new GuiListener(), this);
 
@@ -113,5 +110,4 @@ public class ElysiumWeapon extends JavaPlugin {
     public SkillEngine            getSkillEngine()      { return skillEngine; }
     public WeaponMastery          getWeaponMastery()    { return weaponMastery; }
     public CooldownActionbarTask  getCooldownActionbar(){ return cooldownActionbar; }
-    public FlorentinoSkill        getFlorentinoSkill()  { return florentinoSkill; }
 }
