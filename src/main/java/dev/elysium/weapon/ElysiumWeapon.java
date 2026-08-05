@@ -8,7 +8,6 @@ import dev.elysium.weapon.database.WeaponDatabase;
 import dev.elysium.weapon.gui.GuiListener;
 import dev.elysium.weapon.listener.ElysiumDatabaseListener;
 import dev.elysium.weapon.listener.ElysiumWeaponListener;
-import dev.elysium.weapon.listener.FlorentinoListener;
 import dev.elysium.weapon.mastery.WeaponMastery;
 import dev.elysium.weapon.skill.SkillEngine;
 import dev.elysium.weapon.util.CooldownActionbarTask;
@@ -32,7 +31,6 @@ public class ElysiumWeapon extends JavaPlugin {
     private SkillEngine           skillEngine;
     private WeaponMastery         weaponMastery;
     private CooldownActionbarTask cooldownActionbar;
-    private FlorentinoListener    florentinoListener;
 
     @Override
     public void onEnable() {
@@ -53,17 +51,16 @@ public class ElysiumWeapon extends JavaPlugin {
         WeaponAPI.init(this);
 
         getCommand("weapon").setExecutor(new WeaponCommand(this));
+        getCommand("mas").setExecutor(new dev.elysium.weapon.command.MasteryCommand(this));
         getCommand("weaponadmin").setExecutor(new WeaponAdminCommand(this));
 
-        florentinoListener = new FlorentinoListener(this);
-
         getServer().getPluginManager().registerEvents(new ElysiumWeaponListener(this), this);
-        getServer().getPluginManager().registerEvents(florentinoListener, this);
         getServer().getPluginManager().registerEvents(new ElysiumDatabaseListener(this), this);
         getServer().getPluginManager().registerEvents(new GuiListener(), this);
 
         cooldownActionbar.start();
 
+        // 🚨 TỰ ĐỘNG DỌN DẸP ARMORSTAND KẸT KHI START/RELOAD PLUGIN 🚨
         cleanupStuckHolograms();
 
         getLogger().info("=== ElysiumWeapon v" + getDescription().getVersion() + " enabled! ===");
@@ -74,10 +71,7 @@ public class ElysiumWeapon extends JavaPlugin {
     public void onDisable() {
         if (cooldownActionbar != null) cooldownActionbar.stop();
 
-        if (florentinoListener != null && florentinoListener.getFlorentinoSkill() != null) {
-            florentinoListener.getFlorentinoSkill().cleanupAll();
-        }
-
+        // Dọn dẹp Hologram kẹt trước khi shutdown
         cleanupStuckHolograms();
 
         if (weaponDatabase != null) {
@@ -93,6 +87,9 @@ public class ElysiumWeapon extends JavaPlugin {
         getLogger().info("ElysiumWeapon disabled.");
     }
 
+    /**
+     * Hàm quét và xoá sạch toàn bộ ArmorStand "Marked" bị kẹt trong các World
+     */
     private void cleanupStuckHolograms() {
         int removedCount = 0;
         for (World world : getServer().getWorlds()) {
@@ -106,7 +103,7 @@ public class ElysiumWeapon extends JavaPlugin {
             }
         }
         if (removedCount > 0) {
-            getLogger().info("[CleanUp] Đã dọn dẹp " + removedCount + " ArmorStand 'Marked'!");
+            getLogger().info("[CleanUp] Đã dọn dẹp thành công " + removedCount + " ArmorStand 'Marked' bị kẹt!");
         }
     }
 

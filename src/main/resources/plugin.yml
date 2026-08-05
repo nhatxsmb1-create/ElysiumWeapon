@@ -11,6 +11,10 @@ depend:
   - ProtocolLib
 
 commands:
+  mas:
+    description: Xem Mastery vu khi dang cam
+    usage: /mas
+    permission: elysium.weapon.use
   weapon:
     description: Weapon system
     aliases: [wp]
