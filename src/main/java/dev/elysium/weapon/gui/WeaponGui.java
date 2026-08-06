@@ -137,7 +137,9 @@ public class WeaponGui extends ElysiumGui {
                     e -> {
                         e.setCancelled(true);
                         selectedWeaponId = wId;
+                        // Rebuild va re-register de dam bao GuiListener hoat dong
                         build(player);
+                        GuiListener.register(player.getUniqueId(), WeaponGui.this);
                         player.openInventory(getInventory());
                     }
             ));
